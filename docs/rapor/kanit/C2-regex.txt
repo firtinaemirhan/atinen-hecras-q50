@@ -1,0 +1,17 @@
+$ scenario_pattern('Q50') -> (?<![0-9])[Qq]0*50(?![0-9])
+
+  metin                         alt dize (naif)   sinir kontrollu
+  ---------------------------------------------------------------
+  Q50                                      True              True
+  Q050                                    False              True  <-- FARK
+  q50                                      True              True
+  A_A_B_INPINAR_Q50                        True              True
+  INPINAR_Q500_UNSTEADY                    True             False  <-- FARK
+  A_A_B_INPINAR_Q500                       True             False  <-- FARK
+  Q100                                    False             False
+  Q1000                                   False             False
+  Q5000                                    True             False  <-- FARK
+  Q50A                                     True              True
+  XQ50                                     True              True
+  Q5                                      False             False
+  AQ50B                                    True              True

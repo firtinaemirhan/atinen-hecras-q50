@@ -1,0 +1,20 @@
+$ Sonuc dosyasi arazi olarak neyi soyluyor?
+   terrain_filename : '.\\merge.Clone.hdf'
+   terrain_layer    : 'merge.Clone'
+
+$ terrain.resolve(...) ne buldu?
+   raster_path   : merge.Clone.vrt
+   modifications : 69 adet
+   tipleri       : {'Add': 69}
+   degerleri (m) : {20.0: 69}
+   katmanlar     : {'buildings': 69}
+
+$ Ilk uc degisiklik poligonu:
+   layer='buildings' kind='Add' value=20.0 halka=1 kose=5  ilk kose=[578128.41, 4304515.48]
+   layer='buildings' kind='Add' value=20.0 halka=1 kose=5  ilk kose=[578122.82, 4304532.58]
+   layer='buildings' kind='Add' value=20.0 halka=1 kose=5  ilk kose=[578291.3, 4304637.21]
+
+$ Arazi rasteri: merge.Clone.vrt
+   boyut      : 54679 x 39423
+   cozunurluk : 0.1 m
+   nodata     : -9999.0 | dtype: float32 | crs: PROJCS["WGS_1984_Transverse_Mercator",GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",0],PARAMETER["central_meridian",30],PARAMETER["scale_factor",1],PARAMETER["false_easting",500000],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["Easting",EAST],AXIS["Northing",NORTH]]

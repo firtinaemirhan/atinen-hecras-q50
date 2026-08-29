@@ -1,0 +1,12 @@
+$ python tools/reference_overlay.py --geometry <CASE_DATA>/.../A_A_B_INPINAR.g01 \
+      --reference docs/referans_ekran_goruntusu.png -o docs/referans_karsilastirma.png
+A_A_B_INPINAR.g01
+  centrelines      1 (47 points)
+  cross sections   24 declared, 12 with a GIS cut line
+  cut line points  [13, 17, 17, 16, 14, 13, 12, 23, 23, 13, 13, 16]
+  centreline       x 577887.5..578339.8   y 4304334.6..4304452.0
+  cut lines        x 577877.3..578349.8   y 4304318.8..4304468.4
+q50_depth.tif
+  raster extent    x 577883.1..578361.9   y 4304226.4..4304502.0
+  cut lines inside the raster extent: 12/12
+  figure           docs/referans_karsilastirma.png

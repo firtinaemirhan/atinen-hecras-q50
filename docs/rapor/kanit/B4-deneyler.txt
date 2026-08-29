@@ -1,0 +1,12 @@
+$ DENEY 1 - bina kot degisikligi (69 poligon, +20 m)
+  degisiklikler UYGULANMADAN         islak piksel= 469610  maks=20.201 m  ort= 1.891 m  >2m piksel=42151
+  degisiklikler UYGULANARAK          islak piksel= 413858  maks= 1.625 m  ort= 0.130 m  >2m piksel=    0
+
+$ DENEY 2 - kuru hucre filtresi   (wet_tolerance yerine dogrudan olcum)
+  filtre KAPALI (tum gercek hucre)   islak piksel= 418510  maks=19.611 m  ort= 0.130 m  >2m piksel=   36
+  filtre ACIK (teslim edilen yol)    islak piksel= 413858  maks= 1.625 m  ort= 0.130 m  >2m piksel=    0
+
+  filtre kapaliyken 2 m'nin ustundeki piksel : 36
+  filtre kapaliyken en derin piksel          : 19.611 m
+  filtre acikken 2 m'nin ustundeki piksel    : 0
+  filtre acikken en derin piksel             : 1.625 m

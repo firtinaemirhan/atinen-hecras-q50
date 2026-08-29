@@ -1,0 +1,29 @@
+$ grep -n 'Plan File=\|Current Plan=' A_A_B_INPINAR.prj
+2:Current Plan=p05
+13:Plan File=p03
+14:Plan File=p02
+15:Plan File=p01
+16:Plan File=p04
+17:Plan File=p05
+18:Plan File=p06
+19:Plan File=p07
+
+$ ls $D/*.p?? | xargs -n1 basename    (diskteki plan dosyalari)
+A_A_B_INPINAR.p01
+A_A_B_INPINAR.p02
+A_A_B_INPINAR.p03
+A_A_B_INPINAR.p04
+A_A_B_INPINAR.p05
+A_A_B_INPINAR.p06
+A_A_B_INPINAR.p07
+Backup.p01
+
+$ head -3 $D/Backup.p01     (proje dosyasinda BILDIRILMEYEN dosya)
+Plan Title=A_A_B_INPINAR_Q50
+Program Version=6.60
+Short Identifier=Q50                                                             
+
+$ head -3 $D/A_A_B_INPINAR.p05   (dogru plan)
+Plan Title=A_A_B_INPINAR_Q50
+Program Version=6.60
+Short Identifier=Q50                                                             

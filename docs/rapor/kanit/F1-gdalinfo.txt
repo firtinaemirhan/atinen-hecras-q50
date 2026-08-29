@@ -1,0 +1,45 @@
+$ gdalinfo OUTPUT/q50_depth.tif        (baska bir araca gore dogrulama)
+Driver: GTiff/GeoTIFF
+Files: OUTPUT/q50_depth.tif
+Size is 4788, 2756
+Coordinate System is:
+PROJCRS["WGS_1984_Transverse_Mercator",
+    BASEGEOGCRS["WGS 84",
+        DATUM["World Geodetic System 1984",
+            ELLIPSOID["WGS 84",6378137,298.257223563,
+                LENGTHUNIT["metre",1]],
+            ID["EPSG",6326]],
+        PRIMEM["Greenwich",0,
+            ANGLEUNIT["degree",0.0174532925199433,
+  ...
+$ gdalinfo OUTPUT/q50_depth.tif | sed -n '/Metadata/,/Image Structure/p'
+Metadata:
+  AREA_OR_POINT=Area
+  COMPUTED_AT=2026-08-29T20:06:02+00:00
+  FLOW_FILE=A_A_B_INPINAR.u05
+  GEOMETRY=A_A_B_INPINAR.g03
+  HEC_RAS_EXECUTED=False
+  HEC_RAS_VERSION=HEC-RAS 6.6 September 2024
+  PLAN_NUMBER=p05
+  PLAN_SHORT_ID=Q50
+  PLAN_TITLE=A_A_B_INPINAR_Q50
+  QUANTITY=maximum water depth
+  SCENARIO=Q50
+  SIMULATION_WINDOW=02May2025 01:00:00 to 02May2025 02:10:00
+  SOURCE_RESULTS=A_A_B_INPINAR.p05.hdf
+  SURFACE_METHOD=horizontal (cell-wise)
+  TERRAIN=merge.Clone.vrt
+  TERRAIN_MODIFICATIONS=69
+  TIFFTAG_SOFTWARE=q50depth 1.0.0
+  UNITS=m
+Image Structure Metadata:
+
+$ gdalinfo -stats ... (band istatistigi)
+Band 1 Block=512x512 Type=Float32, ColorInterp=Gray
+  Minimum=0.000, Maximum=1.625, Mean=0.130, StdDev=0.120
+  NoData Value=-9999
+    STATISTICS_MAXIMUM=1.6253662109375
+    STATISTICS_MEAN=0.12953769747678
+    STATISTICS_MINIMUM=0.0001220703125
+    STATISTICS_STDDEV=0.11988914027003
+    STATISTICS_VALID_PERCENT=3.136

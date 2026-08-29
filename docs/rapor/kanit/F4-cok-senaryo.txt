@@ -1,0 +1,8 @@
+$ Ayni boru hatti, senaryo etiketi degistirilerek uc kez:
+
+  senaryo  plan   islak hucre islak piksel   maks (m)   ort (m)   
+  Q50      p05    4165/5470  413858         1.625      0.130     
+  Q100     p06    4232/5470  465321         1.643      0.135     
+  Q1000    p07    4395/5470  690430         1.488      0.168     
+
+  (tekerrur buyudukce islak alan artiyor; boru hatti tek senaryoya ozel degil)

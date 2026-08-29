@@ -1,0 +1,48 @@
+### bos klasor
+$ python main.py --project <gecici>/bos --use-existing-results --output <gecici>/e.tif
+q50depth 1.0.0  on Darwin 24.6.0, python 3.12.13
+started 2026-08-29T23:50:27+03:00
+ERROR: No HEC-RAS project file found under <gecici>/bos
+       A HEC-RAS .prj file contains 'Plan File=' lines. Coordinate system .prj files do not; those are ignored on purpose.
+-> cikis kodu: 3
+
+### olmayan senaryo
+$ python main.py --project <masaustu>/CASE_DATA --scenario Q77 --use-existing-results --output <gecici>/e.tif
+  p04  title='A_A_B_INPINAR_Q500'  short_id='A_A_B_INPINAR_Q500'
+  p05  title='A_A_B_INPINAR_Q50'  short_id='Q50'
+  p06  title='A_A_B_INPINAR_Q100'  short_id='Q100'
+  p07  title='A_A_B_INPINAR_Q1000'  short_id='Q1000'
+-> cikis kodu: 4
+
+### coklu eslesme
+$ python main.py --project <masaustu>/CASE_DATA --scenario Q500 --use-existing-results --output <gecici>/e.tif
+ERROR: Scenario Q500 matches 2 plans, which is ambiguous:
+  p03  title='A_A_B_INPINAR_UNSTEADY_2D'  short_id='INPINAR_Q500_UNSTEADY'
+  p04  title='A_A_B_INPINAR_Q500'  short_id='A_A_B_INPINAR_Q500'
+       Refine --scenario, or fix the plan titles in the project.
+-> cikis kodu: 4
+
+### gecersiz senaryo adi
+$ python main.py --project <masaustu>/CASE_DATA --scenario ABC --use-existing-results --output <gecici>/e.tif
+q50depth 1.0.0  on Darwin 24.6.0, python 3.12.13
+started 2026-08-29T23:50:27+03:00
+[1/6] project     <masaustu>/CASE_DATA/AKA_AFY_BAY_INPINAR_1/1_Modeller/A_A_B_INPINAR.prj
+ERROR: Scenario must look like 'Q50', got 'ABC'.
+-> cikis kodu: 4
+
+### eksik --ras-dir
+$ python main.py --project <masaustu>/CASE_DATA --output <gecici>/e.tif
+q50depth 1.0.0  on Darwin 24.6.0, python 3.12.13
+started 2026-08-29T23:50:27+03:00
+ERROR: --ras-dir is required to run HEC-RAS.
+       Give the HEC-RAS installation folder, or pass --use-existing-results to rebuild the raster from results that are already in the project.
+-> cikis kodu: 2
+
+### hesaplanmamis plan
+$ python main.py --project <masaustu>/CASE_DATA --scenario Q500 --use-existing-results --output <gecici>/e.tif
+ERROR: Scenario Q500 matches 2 plans, which is ambiguous:
+  p03  title='A_A_B_INPINAR_UNSTEADY_2D'  short_id='INPINAR_Q500_UNSTEADY'
+  p04  title='A_A_B_INPINAR_Q500'  short_id='A_A_B_INPINAR_Q500'
+       Refine --scenario, or fix the plan titles in the project.
+-> cikis kodu: 4
+

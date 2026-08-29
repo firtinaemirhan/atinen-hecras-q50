@@ -1,0 +1,54 @@
+$ python -m pytest -q     (son tam kosu)
+........................................................................ [ 90%]
+........                                                                 [100%]
+80 passed in 1.36s
+
+$ python main.py --project <CASE_DATA> --use-existing-results --integrity full    (uretim kosusu, tam kayit)
+q50depth 1.0.0  on Darwin 24.6.0, python 3.12.13
+started 2026-08-29T23:56:55+03:00
+[1/6] project     <masaustu>/CASE_DATA/AKA_AFY_BAY_INPINAR_1/1_Modeller/A_A_B_INPINAR.prj
+
+Plans listed by the project file:
+     p03  A_A_B_INPINAR_UNSTEADY_2D     short id: INPINAR_Q500_UNSTEADY   geom g03  flow u01
+     p02  A_A_B_INPINAR_STEADY          short id: A_A_B_INPINAR           geom g01  flow f01
+     p01  A_A_B_INPNAR_STEADY           short id: A_A_B_INPINAR_STEADY    geom g01  flow f01
+     p04  A_A_B_INPINAR_Q500            short id: A_A_B_INPINAR_Q500      geom g03  flow u04
+  >> p05  A_A_B_INPINAR_Q50             short id: Q50                     geom g03  flow u05   <- matched on Plan Title, Short Identifier
+     p06  A_A_B_INPINAR_Q100            short id: Q100                    geom g03  flow u06
+     p07  A_A_B_INPINAR_Q1000           short id: Q1000                   geom g03  flow u08
+
+[2/6] scenario    Q50 -> p05 (pattern (?<![0-9])[Qq]0*50(?![0-9]))
+      the project's own 'Current Plan=p05' agrees with the selection (not used to decide)
+[3/6] workspace   skipped (--use-existing-results reads the project read-only)
+      note: p05 reads .\_CBS\akarcay_debiler\akarcay_debi.dss (inflow), which does not resolve in the project as delivered
+      note: p05 reads .\Q50\Q50.dss (output), which does not resolve in the project as delivered
+      note: p03: flow file u01 is not declared by the project
+      note: p04: boundary condition reads ..\..\akarcay_debi.dss, which does not resolve
+      note: p05: boundary condition reads .\_CBS\akarcay_debiler\akarcay_debi.dss, which does not resolve
+      note: p06: boundary condition reads .\_CBS\akarcay_debiler\akarcay_debi.dss, which does not resolve
+      note: p07: boundary condition reads .\_CBS\akarcay_debiler\akarcay_debi.dss, which does not resolve
+[4/6] hec-ras     not run; using the results already in the project
+      the notes above only matter for a real HEC-RAS run
+[5/6] results     A_A_B_INPINAR.p05.hdf
+      plan 'A_A_B_INPINAR_Q50', short id 'Q50', HEC-RAS 6.6 September 2024
+      window 02May2025 01:00:00 to 02May2025 02:10:00
+      2D areas: inpinar (5667 cells)
+      terrain merge.Clone.vrt + 69 elevation modifications
+      grid 4788 x 2756 @ 0.1 m
+      wet cells 4165/5470, wet pixels 413858
+      depth max 1.625 m, mean 0.130 m
+
+Scenario verification:
+  [ok] results belong to the selected plan: results say plan file 'A_A_B_INPINAR.p05', selected 'A_A_B_INPINAR.p05'
+  [ok] plan title agrees: results 'A_A_B_INPINAR_Q50' vs plan file 'A_A_B_INPINAR_Q50'
+  [ok] short identifier agrees: results 'Q50' vs plan file 'Q50'
+  [ok] results still carry the Q50 label: title='A_A_B_INPINAR_Q50', short_id='Q50'
+  [ok] geometry agrees: results 'A_A_B_INPINAR.g03' vs plan 'g03'
+  [ok] flow file agrees: results 'A_A_B_INPINAR.u05' vs plan 'u05'
+  [ok] the grid holds water: 413858 wet pixels, maximum depth 1.625 m
+  [ok] depth stays inside the modelled water surface: max water surface 1376.475 m, terrain minimum 1322.219 m
+
+[6/6] output      OUTPUT/q50_depth.tif  (0.3 MB, WGS_1984_Transverse_Mercator (no EPSG equivalent))
+      integrity   source unchanged (176 files, full check)
+
+done in 1.0 s. Log: OUTPUT/run.log

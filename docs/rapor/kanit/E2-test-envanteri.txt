@@ -1,0 +1,90 @@
+$ .venv/bin/python -m pytest --collect-only -q   (test envanteri)
+test_cli.py::test_ras_dir_is_required_for_a_real_run
+test_cli.py::test_missing_project_exits_cleanly
+test_cli.py::test_unknown_scenario_exits_cleanly
+test_cli.py::test_missing_results_exits_cleanly
+test_cli.py::test_nothing_crashes_without_a_traceback
+test_depth.py::test_ghost_cells_are_excluded
+test_depth.py::test_dry_cell_on_a_raised_footprint_is_not_wet
+test_depth.py::test_depth_is_water_surface_minus_terrain
+test_depth.py::test_building_modification_is_applied_to_the_terrain
+test_depth.py::test_without_the_dry_cell_rule_the_building_would_flood
+test_depth.py::test_building_inside_a_wet_cell_stays_dry
+test_depth.py::test_min_depth_filters_thin_films
+test_depth.py::test_coarser_resolution_still_produces_water
+test_depth.py::test_unsupported_modification_type_is_refused
+test_depth.py::test_missing_terrain_raster_is_refused
+test_hydrograph.py::test_series_is_matched_across_different_spellings
+test_hydrograph.py::test_return_periods_are_not_confused
+test_hydrograph.py::test_hours_follow_the_declared_interval
+test_hydrograph.py::test_missing_series_is_refused
+test_hydrograph.py::test_ambiguous_series_is_refused
+test_hydrograph.py::test_a_short_block_is_refused
+test_hydrograph.py::test_unknown_interval_is_refused
+test_hydrograph.py::test_dss_pathname_is_read_from_the_flow_file
+test_hydrograph.py::test_text_export_is_found_anywhere_in_the_project
+test_prepare.py::test_defects_name_the_plan_and_the_reason
+test_prepare.py::test_reduced_project_declares_only_the_selected_plan
+test_prepare.py::test_geometry_and_flow_declarations_survive_the_reduction
+test_prepare.py::test_reduced_project_keeps_crlf
+test_prepare.py::test_reduced_project_drops_dss_entries_that_cannot_be_opened
+test_prepare.py::test_reduced_project_adds_a_declaration_the_project_forgot
+test_prepare.py::test_stale_results_are_removed
+test_prepare.py::test_verify_results_rejects_a_stub_file_and_quotes_the_hec_ras_log
+test_prepare.py::test_verify_results_reports_a_run_that_wrote_nothing
+test_prepare.py::test_verify_results_accepts_a_finished_run
+test_prepare.py::test_plan_flag_is_changed_in_place
+test_prepare.py::test_plan_flag_reports_a_key_that_is_not_there
+test_prepare.py::test_compute_messages_file_is_preferred_over_the_run_banner
+test_prepare.py::test_compute_messages_are_read_from_the_results_file_when_no_log_was_written
+test_prepare.py::test_missing_preprocessed_tables_are_detected
+test_prepare.py::test_geometry_is_rebuilt_from_the_results_file
+test_prepare.py::test_rebuild_refuses_when_the_results_file_is_no_better
+test_prepare.py::test_hecras_geometry_tool_is_reported_missing_not_guessed
+test_prepare.py::test_terrain_timestamp_is_set_from_the_geometry
+test_prepare.py::test_terrain_alignment_is_skipped_when_nothing_is_recorded
+test_project.py::test_finds_the_hec_ras_prj_and_ignores_coordinate_files
+test_project.py::test_project_file_is_found_from_a_grandparent_folder
+test_project.py::test_missing_project_is_reported
+test_project.py::test_plan_list_comes_from_the_project_file_not_the_folder
+test_project.py::test_short_identifier_padding_is_stripped
+test_project.py::test_q50_selects_exactly_p05
+test_project.py::test_other_return_periods_resolve_to_their_own_plan[Q50-p05]
+test_project.py::test_other_return_periods_resolve_to_their_own_plan[Q100-p06]
+test_project.py::test_other_return_periods_resolve_to_their_own_plan[Q1000-p07]
+test_project.py::test_q500_is_genuinely_ambiguous_in_this_project
+test_project.py::test_unknown_scenario_fails_loudly
+test_project.py::test_ambiguous_scenario_fails_loudly
+test_project.py::TestScenarioPattern::test_matches[Q50]
+test_project.py::TestScenarioPattern::test_matches[A_A_B_INPINAR_Q50]
+test_project.py::TestScenarioPattern::test_matches[Q050]
+test_project.py::TestScenarioPattern::test_matches[x Q50 y]
+test_project.py::TestScenarioPattern::test_matches[q50]
+test_project.py::TestScenarioPattern::test_does_not_match[Q500]
+test_project.py::TestScenarioPattern::test_does_not_match[INPINAR_Q500_UNSTEADY]
+test_project.py::TestScenarioPattern::test_does_not_match[Q5000]
+test_project.py::TestScenarioPattern::test_does_not_match[Q100]
+test_project.py::TestScenarioPattern::test_does_not_match[Q1000]
+test_project.py::TestScenarioPattern::test_does_not_match[Q5]
+test_project.py::TestScenarioPattern::test_naive_substring_search_would_be_wrong
+test_project.py::TestScenarioPattern::test_rejects_nonsense
+test_real_data.py::test_selects_p05_and_nothing_else
+test_real_data.py::test_the_stray_backup_plan_is_on_disk_but_not_selected
+test_real_data.py::test_full_pipeline_on_existing_results
+test_real_data.py::test_cli_writes_a_readable_geotiff
+test_references.py::test_collect_separates_inflow_from_output
+test_references.py::test_repair_puts_the_inflow_file_where_the_model_looks
+test_references.py::test_repair_creates_the_output_folder_but_not_the_file
+test_references.py::test_everything_resolves_after_repair
+test_references.py::test_repair_is_a_no_op_on_a_second_run
+test_references.py::test_missing_inflow_file_is_refused
+test_references.py::test_ambiguous_inflow_file_is_refused
+
+$ dosya basina test sayisi
+  25 test_project.py
+  20 test_prepare.py
+  10 test_depth.py
+   9 test_hydrograph.py
+   7 test_references.py
+   5 test_cli.py
+   4 test_real_data.py

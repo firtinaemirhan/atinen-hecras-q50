@@ -1,0 +1,16 @@
+$ Kontrollu deney: sonuc dosyasi (p05.hdf) OLMAYAN bir proje kopyasi
+$ ls kopya/.../1_Modeller/ | head
+A_A_B_INPINAR.f01
+A_A_B_INPINAR.g01
+A_A_B_INPINAR.g02
+A_A_B_INPINAR.g03
+A_A_B_INPINAR.p01
+A_A_B_INPINAR.p02
+   (.hdf dosyasi bilincli olarak kopyalanmadi)
+
+$ python main.py --project <kopya> --use-existing-results
+      the notes above only matter for a real HEC-RAS run
+
+ERROR: No results file at <gecici>/kopya/AKA_AFY_BAY_INPINAR_1/1_Modeller/A_A_B_INPINAR.p05.hdf
+       The plan has not been computed yet. Run without --use-existing-results to let HEC-RAS produce it.
+-> cikis kodu: 

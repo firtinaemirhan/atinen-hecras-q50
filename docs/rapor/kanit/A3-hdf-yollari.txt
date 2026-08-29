@@ -1,0 +1,8 @@
+$ python -c "h5py ile p05.hdf icindeki TUM yollari say"
+dosya: A_A_B_INPINAR.p05.hdf | 3.8 MB
+toplam yol      : 439
+  grup          : 118
+  veri seti     : 321
+
+adinda 'depth' gecen veri seti sayisi: 1
+    Event Conditions/Unsteady/Boundary Conditions/Normal Depths/2D: inpinar BCLine: outflow

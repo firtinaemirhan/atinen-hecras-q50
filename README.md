@@ -48,7 +48,7 @@ Case study belgesinin her maddesi ve bu depodaki karşılığı.
 | Çıktı | [`OUTPUT/q50_depth.tif`](OUTPUT/q50_depth.tif) — bkz. aşağıdaki not |
 | Bağımlılıklar | `requirements.txt`, `requirements-windows.txt`, `requirements-dev.txt` |
 | README | bu dosya |
-| Teknik rapor (madde 6) | [`docs/RAPOR.pdf`](docs/RAPOR.pdf); aynı içerik [`docs/RAPOR.html`](docs/RAPOR.html) |
+| Teknik rapor (madde 6) | [`docs/RAPOR.pdf`](docs/RAPOR.pdf) — 31 sayfa, her aşama ham komut çıktısıyla; kaynağı ve kanıt dosyaları `docs/rapor/`. Kısa özet: [`docs/RAPOR.html`](docs/RAPOR.html) |
 | Çalışma kaydı | [`docs/ornek-calisma-kaydi.txt`](docs/ornek-calisma-kaydi.txt) ve her çalıştırmada yazılan `OUTPUT/run.log` |
 
 > **Depodaki `OUTPUT/q50_depth.tif` hakkında.** Bu dosya, projede hazır duran

@@ -1,0 +1,50 @@
+$ COM ProgID araniyor:
+    ... (12 baska surum icin ProgID)
+    RAS66.HECRASController
+    RAS67.HECRASController
+
+$ Uygulamanin kullandigi parametre adlari gercekten var mi?
+   init_ras_project(ras_version=...)  -> VAR
+   RasCmdr.compute_plan(plan_number=...)  -> VAR
+   RasCmdr.compute_plan(num_cores=...)  -> VAR
+   RasCmdr.compute_plan(dest_folder=...)  -> VAR
+   RasCmdr.compute_plan(overwrite_dest=...)  -> VAR
+   RasControl.run_plan(plan=...)  -> VAR
+   RasControl.run_plan(force_recompute=...)  -> VAR
+
+$ compute.py bu cagrilari nasil yapiyor (kaynak):
+    rc = _import_ras_commander()
+    ras_version = _resolve_ras_version(ras_dir)
+    short_number = plan_number.lstrip("pP")  # ras-commander addresses plans as "05"
+
+    started = time.monotonic()
+    try:
+        project = rc.init_ras_project(str(project_folder), ras_version)
+    except Exception as exc:
+        raise ComputeError(
+            f"HEC-RAS project {prj_path.name} could not be initialised: {exc}",
+            hint="Check that HEC-RAS is installed at the path given by --ras-dir.",
+        ) from exc
+
+    try:
+        if runner == "cmdr":
+            outcome = rc.RasCmdr.compute_plan(
+                short_number,
+                ras_object=project,
+                force_rerun=True,
+                num_cores=cores,
+            )
+            succeeded = bool(getattr(outcome, "success", outcome))
+            detail = f"RasCmdr.compute_plan -> success={succeeded}"
+        else:
+            outcome = rc.RasControl.run_plan(
+                short_number,
+                ras_object=project,
+                force_recompute=True,
+            )
+            succeeded = bool(getattr(outcome, "success", outcome))
+            detail = f"RasControl.run_plan -> success={succeeded}"
+    except Exception as exc:
+        raise ComputeError(
+            f"HEC-RAS failed while computing plan {plan_number}: {exc}",
+            hint="The HEC-RAS computation log in the project folder "

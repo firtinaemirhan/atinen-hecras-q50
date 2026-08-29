@@ -1,0 +1,30 @@
+$ Summary Output altindaki veri setleri:
+   Results/Unsteady/Output/Output Blocks/Base Output/Summary Output/2D Flow Areas/inpinar
+     Cell Cumulative Iter Lookup                shape=(5, 2)       dtype=int32
+     Cell Cumulative Iteration                  shape=(5667,)      dtype=float32
+     Cell Last Iteration                        shape=(5667,)      dtype=int32
+     Cell Maximum Water Surface Error           shape=(2, 5667)    dtype=float32
+     Maximum Face Velocity                      shape=(2, 12868)   dtype=float32
+     Maximum Water Surface                      shape=(2, 5667)    dtype=float32
+     Minimum Face Velocity                      shape=(2, 12868)   dtype=float32
+     Minimum Water Surface                      shape=(2, 5667)    dtype=float32
+     Starting Differences Velocity              shape=(3, 12868)   dtype=float32
+     Starting Differences WSE                   shape=(3, 5667)    dtype=float32
+
+$ Maximum Water Surface ayrintisi
+   shape : (2, 5667)  dtype: float32
+   attr  : Max Time = 0.04859953746199608
+   attr  : Max Value = 1376.474609375
+   attr  : Min Time = 0.0
+   attr  : Min Value = 1323.98388671875
+   attr  : Rows Variables = [b'WSEL' b'Time']
+   attr  : Units = [b'm' b'days']
+   satir 0 (su kotu, m) ilk 6 : [1369.383 1368.605 1368.53  1368.275 1367.703 1366.904]
+   satir 1 (zaman, saat) ilk 6: [0. 0. 0. 0. 0. 0.]
+   kot araligi                : 0.0 -> 1376.475 m
+
+$ Hucre taban kotlari (karsilastirma icin)
+   shape: (5667,)  araligi: 1323.322 -> 1376.474 m
+
+$ Su kotu == taban kotu olan hucre sayisi (hic islanmamis):
+   kuru : 2586 / 5667   |  islak: 3081

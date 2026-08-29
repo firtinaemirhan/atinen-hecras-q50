@@ -1,0 +1,14 @@
+$ python tools/preview.py OUTPUT/q50_depth.tif --terrain <CASE_DATA>/.../merge.Clone.vrt -o docs/q50_depth_preview.png
+OUTPUT/q50_depth.tif
+  grid        4788 x 2756 @ 0.1 m
+  extent      577883.1, 4304226.4 .. 578361.9, 4304502.0
+  wet pixels  413858 (3.1% of the grid)
+  wet area    4,139 m2
+  depth       max 1.625 m, mean 0.130 m
+  percentiles [0.098, 0.279, 0.516] m (50/90/99)
+  scenario    Q50
+  plan_number p05
+  plan_title  A_A_B_INPINAR_Q50
+  plan_short_id Q50
+  simulation_window 02May2025 01:00:00 to 02May2025 02:10:00
+  preview     docs/q50_depth_preview.png

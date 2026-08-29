@@ -1,0 +1,70 @@
+$ find CASE_DATA -type f | wc -l   ;  du -sh CASE_DATA
+176
+280M
+
+$ find CASE_DATA -type f | sed 's/.*\.//' | sort | uniq -c | sort -rn   (uzantiya gore)
+  33 hdf
+  24 g03
+   9 prj
+   7 tif
+   6 shx
+   6 shp
+   6 g01
+   6 dbf
+   5 vrt
+   5 sbx
+   5 sbn
+   5 h5
+   4 g02
+   4 dss
+   2 xml
+   2 x03
+   2 rasmap
+   2 p01
+   2 o03
+   2 o01
+
+$ ls CASE_DATA/AKA_AFY_BAY_INPINAR_1/
+1_Modeller
+
+$ ls CASE_DATA/AKA_AFY_BAY_INPINAR_1/1_Modeller/ | head -40
+2_CBS
+A_A_B_INPINAR_1.b03
+A_A_B_INPINAR_1.bco03
+A_A_B_INPINAR_1.dsc.h5
+A_A_B_INPINAR_1.dss
+A_A_B_INPINAR_1.g01.hdf
+A_A_B_INPINAR_1.g02.hdf
+A_A_B_INPINAR_1.g03.hdf
+A_A_B_INPINAR_1.ic.o03
+A_A_B_INPINAR_1.p03.hdf
+A_A_B_INPINAR_1.rasmap
+A_A_B_INPINAR_1.rasmap.backup
+A_A_B_INPINAR_1.u01.hdf
+A_A_B_INPINAR_1.x03
+A_A_B_INPINAR.b03
+A_A_B_INPINAR.b04
+A_A_B_INPINAR.b05
+A_A_B_INPINAR.b06
+A_A_B_INPINAR.b07
+A_A_B_INPINAR.bco01
+A_A_B_INPINAR.bco03
+A_A_B_INPINAR.bco04
+A_A_B_INPINAR.bco05
+A_A_B_INPINAR.bco06
+A_A_B_INPINAR.bco07
+A_A_B_INPINAR.dsc.h5
+A_A_B_INPINAR.dss
+A_A_B_INPINAR.f01
+A_A_B_INPINAR.g01
+A_A_B_INPINAR.g01.hdf
+A_A_B_INPINAR.g02
+A_A_B_INPINAR.g02.hdf
+A_A_B_INPINAR.g03
+A_A_B_INPINAR.g03.hdf
+A_A_B_INPINAR.ic.o01
+A_A_B_INPINAR.ic.o03
+A_A_B_INPINAR.ic.o04
+A_A_B_INPINAR.ic.o05
+A_A_B_INPINAR.ic.o06
+A_A_B_INPINAR.ic.o07

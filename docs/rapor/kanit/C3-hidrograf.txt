@@ -1,0 +1,11 @@
+$ u05 hangi DSS serisini okuyor?
+   DSS Path = /AKA_AFY_BAY_INPINAR_1/AKC_126_YM/DEBI/02May2025/5Minute/Q50/
+   metin disa aktarimi bulundu: akarcay_debi.txt
+
+$ Seri
+   ordinat sayisi : 15
+   tepe debi      : 1.69 M3/S
+   ilk deger      : 0.0  son deger: 0.02
+   baslangic      : None
+   aralik (dk)    : 5
+   tum degerler   : [0.0, 0.9, 1.69, 1.13, 0.56, 0.34, 0.19, 0.13, 0.12, 0.1, 0.08, 0.07, 0.05, 0.03, 0.02]

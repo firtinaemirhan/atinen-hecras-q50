@@ -1,0 +1,16 @@
+$ Ayni komut iki kez, iki ayri dosyaya:
+   kosu 1 bitti
+   kosu 2 bitti
+
+$ Piksel verisinin SHA-256'si (kunye disi, ham dizi):
+   kosu 1: b0620589e1e6e400b26cfa51415339102667520d39fd7ddfff83f0abb73e3567  shape=(2756, 4788) dtype=float32
+   kosu 2: b0620589e1e6e400b26cfa51415339102667520d39fd7ddfff83f0abb73e3567  shape=(2756, 4788) dtype=float32
+
+   diziler birebir esit : True
+   transform esit       : True
+   crs esit             : True
+
+   TESLIM EDILEN dosya ile karsilastirma:
+   piksel verisi esit   : True
+   kunyede farkli alan  : ['COMPUTED_AT']
+      COMPUTED_AT: yeni='2026-08-29T20:48:32+00:00'  teslim='2026-08-29T20:06:02+00:00'

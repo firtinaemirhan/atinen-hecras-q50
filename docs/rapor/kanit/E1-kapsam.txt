@@ -1,0 +1,25 @@
+$ .venv/bin/python -m coverage run --source=q50depth -m pytest -q
+........................................................................ [ 90%]
+........                                                                 [100%]
+80 passed in 1.85s
+
+$ .venv/bin/python -m coverage report -m --sort=cover
+Name                        Stmts   Miss  Cover
+-----------------------------------------------
+q50depth/compute.py           115     51    56%
+q50depth/cli.py               215     88    59%
+q50depth/workspace.py          67     27    60%
+q50depth/geometry.py           93     21    77%
+q50depth/hydrograph.py         88     14    84%
+q50depth/results.py            97     15    85%
+q50depth/terrain.py            62      6    90%
+q50depth/project.py           186     13    93%
+q50depth/raster.py             31      2    94%
+q50depth/verify.py             20      1    95%
+q50depth/references.py         62      2    97%
+q50depth/depth.py             106      3    97%
+q50depth/__init__.py            1      0   100%
+q50depth/errors.py             21      0   100%
+q50depth/logging_setup.py      23      0   100%
+-----------------------------------------------
+TOTAL                        1187    243    80%

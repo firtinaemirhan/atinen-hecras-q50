@@ -1,0 +1,10 @@
+$ Iki duzeltmenin tam carpim tablosu (2x2)
+
+  bina kotu    kuru hucre filtresi   islak piksel   maks m    ort m  >2m piksel
+  ----------------------------------------------------------------------------
+  UYGULANMADAN KAPALI                      522960   20.201    3.391       87012
+  UYGULANMADAN ACIK                        469610   20.201    1.891       42151
+  UYGULANARAK  KAPALI                      418510   19.611    0.130          36
+  UYGULANARAK  ACIK                        413858    1.625    0.130           0
+
+  Son satir = teslim edilen yapilandirma.

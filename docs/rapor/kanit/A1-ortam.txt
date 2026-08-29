@@ -1,0 +1,15 @@
+$ sw_vers -productName -productVersion; uname -m
+macOS
+15.7.7
+arm64
+
+$ .venv/bin/python -VV
+Python 3.12.13 (main, Mar 25 2026, 03:16:06) [Clang 22.1.1 ]
+
+$ .venv/bin/python -c 'import h5py,numpy,rasterio; ...'
+h5py      3.16.0 | HDF5 2.0.0
+numpy     2.5.2
+rasterio  1.5.1 | GDAL 3.12.4
+
+$ git -C . log -1 --format='%h %ad %s' --date=iso
+e370847 2026-08-29 23:21:45 +0300 Rapor isterlere gore sadelestirildi, PDF eklendi, run.log duzeltildi

@@ -1,0 +1,14 @@
+$ Gercek veri KOPYALANIYOR (orijinale dokunulmuyor)
+   kopya: <gecici>
+   parmak izi alindi: 176 dosya
+
+$ 1) Hicbir sey degistirilmeden:
+   source unchanged (176 files, full check)
+
+$ 2) Tek bir dosyaya tek bir bayt eklendikten sonra:
+   SOURCE CHANGED -> 1 modified: AKA_AFY_BAY_INPINAR_1/1_Modeller/A_A_B_INPINAR.prj
+
+$ 3) Bir dosya silindikten sonra:
+   SOURCE CHANGED -> 1 modified: AKA_AFY_BAY_INPINAR_1/1_Modeller/A_A_B_INPINAR.prj; 1 removed: AKA_AFY_BAY_INPINAR_1/1_Modeller/A_A_B_INPINAR.p01
+
+$ kopya silindi. Gercek CASE_DATA'ya hic yazilmadi.

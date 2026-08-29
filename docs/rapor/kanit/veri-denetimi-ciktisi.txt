@@ -1,0 +1,61 @@
+Audit of <masaustu>/CASE_DATA
+
+BLOCKER (8)
+-------------
+  plan p03                     uses unsteady flow u01, which the project file does not declare (the file exists on disk)
+  plan p04 inflow              boundary condition reads ..\..\akarcay_debi.dss, which does not resolve
+  plan p05 inflow              boundary condition reads .\_CBS\akarcay_debiler\akarcay_debi.dss, which does not resolve
+  plan p06 inflow              boundary condition reads .\_CBS\akarcay_debiler\akarcay_debi.dss, which does not resolve
+  plan p07 inflow              boundary condition reads .\_CBS\akarcay_debiler\akarcay_debi.dss, which does not resolve
+  geometry g01                 A_A_B_INPINAR.g01.hdf lacks Geometry/Structures/Property Tables, Geometry/GeomPreprocess; the unsteady engine reads these and crashes without them
+  geometry g02                 A_A_B_INPINAR.g02.hdf lacks Geometry/Structures/Property Tables, Geometry/GeomPreprocess; the unsteady engine reads these and crashes without them
+  geometry g03                 A_A_B_INPINAR.g03.hdf lacks Geometry/Structures/Property Tables, Geometry/GeomPreprocess; the unsteady engine reads these and crashes without them
+
+WARNING (23)
+-------------
+  plan p03 output              DSS destination dss does not resolve
+  plan p02 output              DSS destination dss does not resolve
+  plan p01 output              DSS destination dss does not resolve
+  plan p04 output              DSS destination dss does not resolve
+  plan p05 output              DSS destination .\Q50\Q50.dss does not resolve
+  plan p06 output              DSS destination .\Q100\Q100.dss does not resolve
+  plan p07 output              DSS destination .\Q1000\Q1000.dss does not resolve
+  project DSS list             .\Q500\Q500.dss does not resolve
+  project DSS list             .\_CBS\akarcay_debiler\akarcay_debi.dss does not resolve
+  project DSS list             malformed entry 'dss'
+  project DSS list             .\Q1000\Q1000.dss does not resolve
+  project DSS list             .\Q100\Q100.dss does not resolve
+  project DSS list             .\Q50\Q50.dss does not resolve
+  rasmap layer                 %LocalAppData%\HEC\Mapping\5.1\XML\Google Hybrid.xml does not resolve
+  rasmap layer                 .\A_A_B_INPINAR.u02.hdf does not resolve
+  rasmap layer                 .\A_A_B_INPINAR.u03.hdf does not resolve
+  rasmap layer                 .\Calculated Layers\q1000_d.rasscript does not resolve
+  rasmap layer                 .\Calculated Layers\q1000_d.tif does not resolve
+  rasmap layer                 .\Q1000\Depth (Max).vrt does not resolve
+  rasmap layer                 .\Q1000\Velocity (Max).vrt does not resolve
+  rasmap layer                 .\Q100\Depth (Max).vrt does not resolve
+  rasmap layer                 .\Q100\Velocity (Max).vrt does not resolve
+  rasmap layer                 .\_CBS\AKA_AFY_BAY_INPINAR_1\ROLEVE\KOPRU_AD_HAT\KOPRU_AD_HAT.shp does not resolve
+
+NOTE (18)
+----------
+  project file                 A_A_B_INPINAR.prj
+  declared by project          3 geometry, 1 steady, 4 unsteady, 7 plans
+  current plan                 p05
+  plan p03                     A_A_B_INPINAR_UNSTEADY_2D (geom g03, flow u01)
+  plan p02                     A_A_B_INPINAR_STEADY (geom g01, flow f01)
+  plan p01                     A_A_B_INPNAR_STEADY (geom g01, flow f01)
+  plan p04 inflow              u04 stores no hydrograph ordinates; it depends on the DSS file
+  plan p04                     A_A_B_INPINAR_Q500 (geom g03, flow u04)
+  plan p05 inflow              u05 stores no hydrograph ordinates; it depends on the DSS file
+  plan p05                     A_A_B_INPINAR_Q50 (geom g03, flow u05)
+  plan p06 inflow              u06 stores no hydrograph ordinates; it depends on the DSS file
+  plan p06                     A_A_B_INPINAR_Q100 (geom g03, flow u06)
+  plan p07 inflow              u08 stores no hydrograph ordinates; it depends on the DSS file
+  plan p07                     A_A_B_INPINAR_Q1000 (geom g03, flow u08)
+  undeclared file              A_A_B_INPINAR.u01 exists but is not in the project
+  undeclared file              A_A_B_INPINAR.u07 exists but is not in the project
+  stray plan file              Backup.p01 looks like a plan but belongs to no project
+  rasmap references            38 declared, 10 missing
+
+Summary: 8 blocker, 23 warning, 18 note

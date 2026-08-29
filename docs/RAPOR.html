@@ -84,7 +84,7 @@
     <div><span>Hazırlayan</span><b>Emirhan Fırtına</b></div>
     <div><span>Kurum</span><b>Atinen Mühendislik</b></div>
     <div><span>Tarih</span><b>29 Ağustos 2026</b></div>
-    <div><span>Teknoloji</span><b>Python 3.13+ · HEC-RAS 6.6</b></div>
+    <div><span>Teknoloji</span><b>Python 3.10+ · HEC-RAS 6.6</b></div>
     <div><span>Çıktı</span><b>OUTPUT/q50_depth.tif</b></div>
   </div>
 </header>
@@ -121,6 +121,7 @@ koşulda yazılmıyor ve bu her çalıştırmada SHA-256 ile kanıtlanıyor.</p>
   <div class="kpi"><b>80</b><span>otomatik test</span></div>
 </div>
 
+<div class="callout"><p><b>Ayrıntılı sürüm:</b> <code>RAPOR.pdf</code> aynı konuları 31 sayfada, her aşamanın <b>ham komut çıktısıyla</b> birlikte anlatır. Bu HTML sürümü kısa özettir.</p></div>
 <p>Bu rapor, belgenin 6. maddesinin istediği teknik açıklamadır: Q50 senaryosunun nasıl
 belirlendiği, HEC-RAS ile nasıl etkileşim kurulduğu, üretilen rasterın doğru senaryoya ait
 olduğunun nasıl kontrol edildiği ve hata durumlarının nasıl yönetildiği. Belgenin 7. maddesinin
@@ -273,7 +274,7 @@ okunursa harita binaların üstüne metrelerce su boyar:</p>
 <table>
   <thead><tr><th>Bina kot değişikliği</th><th>Ortalama derinlik</th><th>Değerlendirme</th></tr></thead>
   <tbody>
-    <tr><td>Uygulanmadan</td><td class="bad-t">3,37 m</td><td>Fiziksel olarak imkânsız</td></tr>
+    <tr><td>Uygulanmadan</td><td class="bad-t">3,391 m</td><td>Fiziksel olarak imkânsız (kuru hücre filtresi de kapalıyken ölçüldü)</td></tr>
     <tr><td>Uygulandıktan sonra</td><td class="ok-t">0,13 m</td><td>Hücre bazlı ortalama 0,117 m ile tutarlı</td></tr>
   </tbody>
 </table>
@@ -283,7 +284,7 @@ okunursa harita binaların üstüne metrelerce su boyar:</p>
 hücrenin kendi taban kotu olarak raporlar — bu su değildir. Tabanı bir bina üzerinde oturan kuru
 hücreler, binanın kaplamadığı şeritte 20 m derinlik üretir. Bu yüzden yalnızca
 <code>maksimum su kotu &gt; hücre taban kotu</code> olan hücreler boyanır. Kural olmadan artık
-36–54 piksel 2 m'nin üzerinde, en fazlası 19,96 m çıkıyordu; kuralla birlikte en derin piksel
+36 piksel 2 m'nin üzerinde, en fazlası 19,611 m çıkıyordu; kuralla birlikte en derin piksel
 <b>1,625 m</b>.</p>
 
 <h3>Koordinat sistemi</h3>
@@ -333,7 +334,7 @@ Dosya adına güvenmek gerekmez:</p>
 <figure>
   <img src="referans_karsilastirma.png" alt="Referans çıktı ile üretilen Q50 haritasının karşılaştırması">
   <figcaption><b>Şekil 1.</b> Üstte referans görüntü, altta üretilen Q50 maksimum derinlik
-  haritası. Alt panele projenin 1D geometrisi bindirilmiştir: nehir ekseni (mavi) ve 24 kesit
+  haritası. Alt panele projenin 1D geometrisi bindirilmiştir: nehir ekseni (mavi) ve 12 kesit
   çizgisi (turkuaz).</figcaption>
 </figure>
 <p>Referans görüntüde kanal boyunca kesintisiz, pürüzsüz bir şerit görünüyor; üretilen haritada ise

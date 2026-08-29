@@ -1,0 +1,9 @@
+$ import ras_commander; inspect.signature ile imzalar okunuyor
+   surum: 0.99.1
+
+   init_ras_project(ras_project_folder, ras_version=None, ras_object=None, load_results_summary=True, hide_intro=False, accept_tcu=False) -> 'RasPrj'
+   RasCmdr.compute_plan(plan_number: Union[str, numbers.Number, pathlib.Path], dest_folder=None, ras_object=None, clear_geompre=False, force_geompre: bool = False, force_rerun: bool = False, num_cores=None, overwrite_dest=False, skip_existing: bool = False, verify: bool = False, stream_callback: Optional[Callable] = None, use_optimal_hdf_settings: bool = False, hdf_settings_profile: str = 'balanced', hdf_additional_variables: Optional[List[str]] = None, hdf_output_variables: Optional[List[str]] = None, hdf_output_options: Optional[Dict[str, Any]] = None, hdf_output_profile: Optional[str] = None, dialog_watchdog: bool = True) -> 'ComputeResult'
+   RasControl.run_plan(plan: Union[str, pathlib.Path], ras_object=None, force_recompute: bool = False, use_watchdog: bool = True, max_runtime: int = 86400, refresh_results: bool = True) -> 'RasControlResult'
+
+$ COM ProgID (RasControl kaynak kodundan):
+   HECRASController API wrapper with ras-commander style interface.
