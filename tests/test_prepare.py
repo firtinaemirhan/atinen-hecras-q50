@@ -73,10 +73,25 @@ def test_reduced_project_declares_only_the_selected_plan(messy: Path):
     after = project.load_project(prj)
     assert [p.number for p in after.plans] == ["p05"]
     assert after.current_plan == "p05"
+    assert "Y Axis Title=Elevation" in prj.read_text(encoding="latin-1"), (
+        "unrelated settings are kept"
+    )
+
+
+def test_geometry_and_flow_declarations_survive_the_reduction(messy: Path):
+    """HEC-RAS numbers its preprocessor output (.xNN) from the geometry list.
+
+    Dropping entries makes it look for a file that was never delivered, ask to
+    run the preprocessor, and then rebuild -- and lose -- the structure tables.
+    """
+    prj = messy / f"{STEM}.prj"
+    loaded = project.load_project(prj)
+    plan = next(p for p in loaded.plans if p.number == "p05")
+    project.write_reduced(prj, plan)
+
     text = prj.read_text(encoding="latin-1")
-    assert "Geom File=g03" in text and "Geom File=g01" not in text
-    assert "Unsteady File=u05" in text and "Unsteady File=u06" not in text
-    assert "Y Axis Title=Elevation" in text, "unrelated settings are kept"
+    assert "Geom File=g01" in text and "Geom File=g03" in text
+    assert "Unsteady File=u05" in text and "Unsteady File=u06" in text
 
 
 def test_reduced_project_keeps_crlf(messy: Path):

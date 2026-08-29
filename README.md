@@ -310,9 +310,13 @@ raporluyor ve geriye **yarım bir `p05.hdf`** kalıyor.
    hidrografla hesaplanmış bir taşkın haritası, hesaplanmamış olmasından kötüdür.
 2. **Çıktı DSS klasörünü oluşturur.** HEC-RAS dosyayı kendi yazar ama klasörü
    yaratmaz.
-3. **Proje dosyasını seçilen plana indirger.** Yalnız `p05`, `g03`, `u05`
-   bildirilir; diğer planlar, açılamayan senaryo klasörlerine bakan DSS
-   girdileri ve `DSS File=dss` gibi bozuk satırlar çıkarılır. Geri kalan her
+3. **Proje dosyasındaki plan listesini seçilen plana indirger.** Diğer planlar,
+   açılamayan senaryo klasörlerine bakan DSS girdileri ve `DSS File=dss` gibi
+   bozuk satırlar çıkarılır. **Geometri ve akış bildirimleri olduğu gibi
+   bırakılır** — HEC-RAS ön işlemci çıktı dosyasını (`.xNN`) projenin geometri
+   listesinden numaralandırıyor, liste kısalınca teslimde hiç bulunmayan bir
+   dosyayı arıyor ve *"Geometry preprocessor output file was not found ...
+   A_A_B_INPINAR.X04"* diyaloğunu açıp tabloları baştan kuruyor. Geri kalan her
    ayar olduğu gibi kalır. Bu adım varsayılan olarak **yalnızca başka bir plan
    bozuksa** yapılır (`--trim-project auto`); sağlıklı bir projeye dokunulmaz.
 4. **RASMapper'ın hazır harita üretimini kapatır** (`Run RASMapper=-1` → `0`).
@@ -359,8 +363,15 @@ recompute` ile bu davranış kapatılabilir.
 ```
 A_A_B_INPINAR.g03.hdf is missing 2 preprocessed group(s) the unsteady engine reads on start-up
 A_A_B_INPINAR.g03.hdf rebuilt from A_A_B_INPINAR.p05.hdf (added Geometry/Structures/Property Tables, Geometry/GeomPreprocess)
+set the terrain file's timestamp to the one the geometry records (10JUN2026 17:49:26)
 told HEC-RAS not to re-run the geometry preprocessor (Run HTab -1 -> 0); it would drop those tables again
 ```
+
+Arazi zaman damgası da hizalanır: geometri `Terrain File Date` kaydediyor ve
+HEC-RAS bunu arazi dosyasının değiştirilme zamanıyla karşılaştırıyor. Proje
+başka bir makineye kopyalanınca bu karşılaştırma tutmuyor ve HEC-RAS
+*"Associated terrain has been updated"* deyip tabloları yeniden kuruyor —
+yani yapı tablolarını yine düşürüyor.
 
 #### Hidrografı gömme
 

@@ -312,6 +312,13 @@ def run(argv: list[str] | None = None) -> int:
                     geometry_hdf, results.results_path_for(selected.path)
                 )
                 log.info(f"      {repair.line()}")
+                aligned = geometry.align_terrain_timestamp(geometry_hdf, working_folder)
+                if aligned:
+                    log.info(
+                        f"      set the terrain file's timestamp to the one the "
+                        f"geometry records ({aligned}), so HEC-RAS does not treat "
+                        "it as updated"
+                    )
                 previous = project.set_plan_flag(working_plan, "Run HTab", " 0 ")
                 if previous is not None and previous.strip() != "0":
                     log.info(

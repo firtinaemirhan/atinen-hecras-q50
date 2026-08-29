@@ -25,12 +25,24 @@ geometry and terrain, so the working copy's geometry HDF is rebuilt from it.
 
 from __future__ import annotations
 
+import os
+import re
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 import h5py
 
 from .errors import ComputeError
+
+_MONTHS = {
+    m: i
+    for i, m in enumerate(
+        ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"],
+        start=1,
+    )
+}
+_TERRAIN_DATE = re.compile(r"^(\d{2})([A-Za-z]{3})(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$")
 
 # What a geometry the unsteady engine can start on must contain.
 REQUIRED = (
@@ -50,6 +62,55 @@ class Repair:
             f"{self.geometry_hdf.name} rebuilt from {self.source.name} "
             f"(added {', '.join(self.added)})"
         )
+
+
+def _decode(value: object) -> str:
+    return value.decode("latin-1").strip() if isinstance(value, bytes) else str(value).strip()
+
+
+def align_terrain_timestamp(geometry_hdf: Path, project_folder: Path) -> str | None:
+    """Make the terrain file look as old as the geometry says it is.
+
+    A geometry records ``Terrain File Date``, and HEC-RAS compares it with the
+    terrain file's own modification time.  Copying a project preserves those
+    times, but a different machine reads them in a different time zone, and
+    HEC-RAS then reports
+
+        Computing 2D Flow Area tables: Associated terrain has been updated.
+
+    and rebuilds the tables -- discarding the structure tables again.  Setting
+    the terrain file's timestamp to the recorded one removes the disagreement.
+    Only the working copy is touched.
+
+    Returns the timestamp that was applied, or None if there was nothing to do.
+    """
+    try:
+        with h5py.File(geometry_hdf, "r") as handle:
+            geometry = handle.get("Geometry")
+            if geometry is None:
+                return None
+            recorded = _decode(geometry.attrs.get("Terrain File Date", b""))
+            relative = _decode(geometry.attrs.get("Terrain Filename", b""))
+    except OSError:
+        return None
+
+    match = _TERRAIN_DATE.match(recorded)
+    if not match or not relative:
+        return None
+    day, month, year, hour, minute, second = match.groups()
+    if month.upper() not in _MONTHS:
+        return None
+    stamp = datetime(
+        int(year), _MONTHS[month.upper()], int(day), int(hour), int(minute), int(second)
+    ).timestamp()
+
+    terrain = (project_folder / relative.replace("\\", "/").lstrip("./")).resolve()
+    touched = []
+    for path in (terrain, *terrain.parent.glob(terrain.stem + ".*")):
+        if path.is_file():
+            os.utime(path, (stamp, stamp))
+            touched.append(path)
+    return recorded if touched else None
 
 
 def missing_tables(geometry_hdf: Path) -> tuple[str, ...]:

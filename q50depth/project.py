@@ -227,7 +227,17 @@ def write_reduced(prj_path: Path, plan: Plan, keep_dss: bool = True) -> list[str
     even though it is itself consistent.
 
     Since the application computes exactly one plan, its working copy gets a
-    project that declares exactly that plan, its geometry and its flow file.
+    project that declares only that plan.  Geometry and flow declarations are
+    left alone: HEC-RAS numbers its geometry preprocessor output files
+    (``.xNN``) from the project's geometry list, and removing entries makes it
+    look for a file that was never delivered --
+
+        Geometry preprocessor output file was not found.
+        ...\A_A_B_INPINAR.X04
+        Do you wish to run the preprocessor and continue?
+
+    -- after which it rebuilds the tables and drops the structure tables again.
+
     The delivered project is not modified; only the copy is.
 
     Returns the lines that were removed, for the run log.
@@ -236,11 +246,11 @@ def write_reduced(prj_path: Path, plan: Plan, keep_dss: bool = True) -> list[str
     newline = _newline(raw)
     lines = raw.decode(_ENCODING).splitlines()
 
-    wanted = {
-        "Geom File": plan.geometry_file,
-        "Plan File": plan.number,
-        ("Unsteady File" if plan.flow_file.startswith("u") else "Flow File"): plan.flow_file,
-    }
+    flow_key = "Unsteady File" if plan.flow_file.startswith("u") else "Flow File"
+    # Only the plan list is reduced; geometry and flow declarations stay so
+    # that HEC-RAS keeps its own numbering.
+    wanted = {"Plan File": plan.number}
+    required = {"Geom File": plan.geometry_file, flow_key: plan.flow_file}
 
     folder = prj_path.parent
     kept: list[str] = []
@@ -252,7 +262,11 @@ def write_reduced(prj_path: Path, plan: Plan, keep_dss: bool = True) -> list[str
         key, value = key.strip(), value.strip()
 
         if key in _FILE_KEYS:
-            if wanted.get(key) == value:
+            if key not in wanted:  # geometry and flow lists are left intact
+                if required.get(key) == value:
+                    seen.add(key)
+                kept.append(line)
+            elif wanted[key] == value:
                 seen.add(key)
                 kept.append(line)
             else:
@@ -282,7 +296,9 @@ def write_reduced(prj_path: Path, plan: Plan, keep_dss: bool = True) -> list[str
 
     # A plan may name a file the project never declared (p03 -> u01 here); if
     # that is the selected plan, the declaration has to be added.
-    missing = [(k, v) for k, v in wanted.items() if k not in seen and v]
+    missing = [
+        (k, v) for k, v in {**required, **wanted}.items() if k not in seen and v
+    ]
     if missing:
         anchor = next(
             (i for i, line in enumerate(kept) if line.startswith("Geom File=")),
