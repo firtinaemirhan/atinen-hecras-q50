@@ -96,10 +96,12 @@ def _grid_at_resolution(bounds, resolution: float) -> Grid:
 def read_terrain(terrain: Terrain, bounds, resolution: float | None) -> tuple[np.ndarray, Grid]:
     """Read terrain elevation over ``bounds`` and apply its modifications."""
     with rasterio.open(terrain.raster_path) as source:
+        # `or` would swallow a legitimate nodata of 0.0, so test for None.
+        nodata = source.nodata if source.nodata is not None else -9999.0
         if resolution is None or np.isclose(resolution, abs(source.transform.a)):
             grid, window = _grid_aligned_to(source, bounds)
             elevation = source.read(
-                1, window=window, boundless=True, fill_value=source.nodata or -9999.0
+                1, window=window, boundless=True, fill_value=nodata
             ).astype("float32")
         else:
             grid = _grid_at_resolution(bounds, resolution)
@@ -112,24 +114,23 @@ def read_terrain(terrain: Terrain, bounds, resolution: float | None) -> tuple[np
                 window=window,
                 out_shape=grid.shape,
                 boundless=True,
-                fill_value=source.nodata or -9999.0,
+                fill_value=nodata,
                 resampling=(
                     Resampling.average
                     if resolution > abs(source.transform.a)
                     else Resampling.bilinear
                 ),
             ).astype("float32")
-        nodata = source.nodata
 
-    if nodata is not None:
-        elevation[elevation == np.float32(nodata)] = np.nan
-    elevation[elevation < -9000] = np.nan
+    elevation[elevation == np.float32(nodata)] = np.nan
+    elevation[elevation < -9000] = np.nan  # also catches boundless fill
 
     if terrain.modifications:
         shapes = [(m.geojson(), m.value) for m in terrain.modifications]
         # all_touched keeps the boundary pixel of a footprint on the building
         # side; leaving it on the ground side leaves a one-pixel ring of
-        # spurious deep water around every building.
+        # spurious deep water around every building. MergeAlg.replace means
+        # overlapping footprints raise the ground once, not once per polygon.
         adjustment = rasterize(
             shapes,
             out_shape=grid.shape,

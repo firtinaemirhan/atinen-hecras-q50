@@ -14,8 +14,68 @@ sonuç dosyasının kendi içinden okunur.
 
 ---
 
+## Belgedeki maddelerin karşılığı
+
+Case study belgesinin her maddesi ve bu depodaki karşılığı.
+
+### 3. Beklenen uygulama davranışı
+
+| Belge | Karşılığı |
+| --- | --- |
+| Kullanıcıdan **proje klasörünü** alabilmeli | `--project` |
+| Kullanıcıdan **HEC-RAS kurulum dizinini** alabilmeli | `--ras-dir` (klasör ya da doğrudan `Ras.exe`) |
+| Q50 **otomatik** belirlenmeli, plan numarası seçtirilmemeli | `q50depth/project.py` — `.prj`'deki plan listesi + sınır kontrollü kalıp. Hiçbir yerde soru sorulmaz. |
+| Harita **proje sonuçları kullanılarak** üretilmeli | `p05.hdf` içindeki `Maximum Water Surface` + model arazisi |
+| `OUTPUT` klasörüne `q50_depth.tif` adıyla yazılmalı | Varsayılan çıktı yolu: `OUTPUT/q50_depth.tif` |
+| Başarı ve başarısızlık için **anlaşılır durum bilgisi** | Adım adım konsol çıktısı; hata sınıfı başına ayrı çıkış kodu ve ipucu |
+| **Kontrolsüz kapanma olmamalı** | Beklenen her hata `Q50Error`; yığın izi yalnızca gerçek bug'da. `tests/test_cli.py` bunu sınar. |
+
+### 4. Kısıtlar
+
+| Kısıt | Nasıl karşılandı |
+| --- | --- |
+| **Otomatik seçim** — Q50 koda gömülmeyecek, seçtirilmeyecek | Plan numarası (`p05`) kodun hiçbir yerinde geçmez; senaryo etiketi `--scenario` parametresidir, varsayılanı `Q50`'dir. Etiketten plana giden yol her çalıştırmada projeden yeniden türetilir. |
+| **Gerçek üretim** — hazır raster kopyalanmayacak | Raster her seferinde sonuç HDF'inden hesaplanır. Klasördeki hiçbir `.tif` kopyalanmaz: veri setindeki yedi `.tif` tarandı, dördü arazi kotu (~1374 m), biri arazi örtüsü sınıf kodu (2–8), ikisi boş — **hazır bir derinlik rasteri yok**, belgenin dediği gibi. GeoTIFF etiketi `HEC_RAS_EXECUTED` HEC-RAS'ın gerçekten çalışıp çalışmadığını kaydeder. |
+| **Taşınabilirlik** — yollar gömülmeyecek | Tüm yollar argüman. Kodda sabit yol yok; yalnızca yardım metinlerinde örnek yol geçer. |
+| **Kaynak bütünlüğü** — orijinal dosyalar değişmeyecek | Proje `workspace/` altına kopyalanır, hesap orada yapılır. Ayrıca kaynak klasörün parmak izi öncesi/sonrası karşılaştırılıp rapor edilir (`--integrity full` ile SHA-256). |
+| **Tekrarlanabilirlik** | Bu README'deki kurulum + tek komut. Ölçülen sayılar `docs/WINDOWS-DOGRULAMA.md` içinde referans olarak yazılı. |
+
+### 5. Teslimatlar
+
+| Teslim kalemi | Dosya |
+| --- | --- |
+| Kaynak kod | `main.py`, `q50depth/` (11 modül), `tools/preview.py` |
+| Çıktı | [`OUTPUT/q50_depth.tif`](OUTPUT/q50_depth.tif) — bkz. aşağıdaki not |
+| Bağımlılıklar | `requirements.txt`, `requirements-windows.txt`, `requirements-dev.txt` |
+| README | bu dosya |
+| Çalışma kaydı | [`docs/ornek-calisma-kaydi.txt`](docs/ornek-calisma-kaydi.txt) ve her çalıştırmada yazılan `OUTPUT/run.log` |
+
+> **Depodaki `OUTPUT/q50_depth.tif` hakkında.** Bu dosya, projede hazır duran
+> `p05.hdf` sonuçlarından üretilmiştir (`--use-existing-results`); geliştirme
+> makinesinde HEC-RAS bulunmadığı için hesap adımı orada çalıştırılamadı.
+> **Hazır bir raster kopyalanmamıştır** — dosya her seferinde HEC-RAS'ın kendi
+> sonuçlarından hesaplanır. HEC-RAS 6.6 kurulu Windows makinesinde tek komutla
+> yeniden üretilir ve o çıktı bunun yerini alır; GeoTIFF'in `HEC_RAS_EXECUTED`
+> etiketi hangisinin elinizde olduğunu söyler.
+
+### 6. Teknik açıklama beklentisi
+
+| Belge sorusu | Bölüm |
+| --- | --- |
+| Q50 senaryosunu nasıl belirlediniz | [Q50 senaryosunu nasıl belirledim](#q50-senaryosunu-nasıl-belirledim) |
+| HEC-RAS ile nasıl etkileşim kurdunuz | [HEC-RAS ile nasıl etkileşim kuruyorum](#hec-ras-ile-nasıl-etkileşim-kuruyorum) |
+| Rasterın doğru senaryoya ait olduğunu nasıl kontrol ettiniz | [Çıktının doğru senaryoya ait olduğunu nasıl doğruluyorum](#çıktının-doğru-senaryoya-ait-olduğunu-nasıl-doğruluyorum) |
+| Hata durumlarını nasıl yönettiniz | [Hata yönetimi](#hata-yönetimi) |
+
+### 7. Yapay zekâ kullanımı
+
+Beyan: [`docs/AI-KULLANIMI.md`](docs/AI-KULLANIMI.md).
+
+---
+
 ## İçindekiler
 
+- [Belgedeki maddelerin karşılığı](#belgedeki-maddelerin-karşılığı)
 - [Kurulum](#kurulum)
 - [Kullanım](#kullanım)
 - [Nasıl çalışıyor](#nasıl-çalışıyor)
@@ -123,6 +183,8 @@ Modüller:
 | `q50depth/raster.py` | GeoTIFF yazımı ve künye etiketleri |
 | `q50depth/verify.py` | Çıktı ile senaryo arasındaki bağın kontrolü |
 | `q50depth/cli.py` | Argümanlar, akış, günlük |
+| `q50depth/errors.py` | Hata sınıfları ve çıkış kodları |
+| `q50depth/logging_setup.py` | Konsol ve dosya günlüğü |
 
 ## Q50 senaryosunu nasıl belirledim
 
@@ -329,6 +391,9 @@ En önemli iki test, düzeltilen iki hatayı sabitler:
   (p01, p02 bu durumda).
 - **Çalışma kopyası otomatik silinmez.** Veri seti ~500 MB; kopyanın yeri ve
   silinebilir olduğu çalışma kaydında bildirilir.
+- **Depodaki çıktı hazır sonuçlardan üretildi.** Hesap adımı Windows'ta
+  çalıştırılıp dosya yenilenecek; GeoTIFF etiketi `HEC_RAS_EXECUTED=False`
+  olduğu sürece bu geçerlidir.
 - **Referans çıktı ile sayısal karşılaştırma yapılmadı.** Sezer Bey'in
   toplantıda gösterdiği çıktının bir kopyası elimde yok; karşılaştırma
   görsel olarak yapıldı.

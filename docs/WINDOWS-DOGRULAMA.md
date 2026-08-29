@@ -145,6 +145,24 @@ derinlik **mertebesinin** örtüşmesi.
 
 ---
 
+## 7. Teslim dosyalarını yenile
+
+HEC-RAS gerçekten çalıştıktan sonra depodaki teslim kalemleri güncellenmeli:
+
+```bat
+copy OUTPUT\run.log docs\ornek-calisma-kaydi.txt
+python tools\preview.py OUTPUT\q50_depth.tif --terrain "...\merge.Clone.vrt" -o docs\q50_depth_preview.png
+git add -f OUTPUT\q50_depth.tif OUTPUT\run.log docs\
+git commit -m "HEC-RAS ile hesaplanan çıktı"
+git push
+```
+
+- [ ] `gdalinfo OUTPUT\q50_depth.tif` çıktısında **`HEC_RAS_EXECUTED=True`** görünüyor mu?
+- [ ] README'nin "Bilinen sınırlamalar" bölümündeki "hesap adımı sınanmadı"
+      maddesi artık geçersiz — güncellenmeli.
+
+---
+
 ## Sonuç
 
 Bittiğinde şunu bilmek istiyoruz:

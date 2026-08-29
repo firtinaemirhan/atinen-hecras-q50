@@ -1,16 +1,20 @@
 # --- HEC-RAS input data (never committed: ~500 MB, client data) ---
 CASE_DATA/
 *.hdf
-*.tif
 *.vrt
 *.dss
-!docs/**/*.png
+*.tif
 
 # --- run artefacts ---
-OUTPUT/*
-!OUTPUT/.gitkeep
 workspace/
 *.log
+OUTPUT/*
+!OUTPUT/.gitkeep
+
+# The two files the brief asks to deliver are kept, everything else under
+# OUTPUT/ is scratch.
+!OUTPUT/q50_depth.tif
+!OUTPUT/run.log
 
 # --- python ---
 __pycache__/

@@ -31,7 +31,7 @@ def build_parser() -> argparse.ArgumentParser:
             '  python main.py --project "D:/CASE_DATA" '
             '--ras-dir "C:/Program Files (x86)/HEC/HEC-RAS/6.6"\n\n'
             "  # rebuild the raster from results that already exist (no HEC-RAS needed)\n"
-            "  python main.py --project ~/Desktop/CASE_DATA --use-existing-results\n"
+            "  python main.py --project /path/to/CASE_DATA --use-existing-results\n"
         ),
     )
     parser.add_argument(
@@ -158,6 +158,8 @@ def run(argv: list[str] | None = None) -> int:
     log.info(f"started {datetime.now(timezone.utc).astimezone().isoformat(timespec='seconds')}")
     log.debug(f"arguments: {vars(args)}")
 
+    if args.use_existing_results and args.ras_dir is not None:
+        log.warning("note: --ras-dir is ignored because --use-existing-results was given")
     if not args.use_existing_results and args.ras_dir is None:
         raise UsageError(
             "--ras-dir is required to run HEC-RAS.",
