@@ -554,8 +554,31 @@ En önemli iki test, düzeltilen iki hatayı sabitler:
 
 ## Bilinen sınırlamalar
 
-- **HEC-RAS çalıştırma adımı bu makinede doğrulanmadı.** Windows'ta sağlama
-  için adım adım liste: [`docs/WINDOWS-DOGRULAMA.md`](docs/WINDOWS-DOGRULAMA.md). Geliştirme macOS'ta
+- **Teslim edilen model bu HEC-RAS kurulumunda yeniden hesaplanamıyor.**
+  Uygulama planı çalıştırıyor, HEC-RAS geometriyi işliyor, sonra unsteady
+  motoru başlar başlamaz çöküyor (`forrtl: severe (157)`, `READ_UN_HDF_STRUC`).
+  Denenip **elenen** nedenler — hepsi Windows 11 + HEC-RAS 6.6'da ölçüldü:
+
+  | Deneme | Sonuç |
+  | --- | --- |
+  | Teslim edildiği gibi (yalnız DSS yolu onarılmış) | çöküyor |
+  | + proje tek plana indirgenmiş | çöküyor |
+  | + hidrograf akış dosyasına gömülmüş (DSS bağımlılığı yok) | çöküyor |
+  | + eksik geometri tabloları geri konmuş, **koşu sonrası yerinde olduğu doğrulandı** | çöküyor |
+  | + `RasProcess.exe CompleteGeometry` çalıştırılmış | çöküyor |
+  | + RASMapper kapatılmış, arazi zaman damgası hizalanmış | çöküyor |
+
+  Son koşuda HEC-RAS *"inpinar: Mesh property tables are current"* diyor, yani
+  geometri kabul edilmiş durumda; çöküş yine de aynı satırda. Bu, elde kalan
+  açıklamayı modelin 2D hidrolik bağlantılarında (menfez grupları) HEC-RAS'ın
+  kendi hatası ya da teslim paketinde henüz tespit edilemeyen başka bir eksik
+  olarak bırakıyor. **Bu bir uygulama hatası değil:** aynı çöküş, proje
+  HEC-RAS arayüzünde elle açılıp çalıştırıldığında da oluyor.
+
+  Bu yüzden depodaki çıktı, projenin kendi hesaplanmış sonuçlarından üretilmiştir
+  (`--use-existing-results`). Hazır bir raster **kopyalanmamıştır**; harita her
+  seferinde HEC-RAS'ın kendi sonuç dosyasından hesaplanır.
+  Adım adım sağlama listesi: [`docs/WINDOWS-DOGRULAMA.md`](docs/WINDOWS-DOGRULAMA.md). Geliştirme macOS'ta
   yapıldı; `compute.py` yalnızca gerçek API imzaları okunarak yazıldı
   (`ras-commander` 0.99.1 kurulup imzaları incelendi), fakat HEC-RAS
   macOS'ta bulunmadığı için o adım Windows'ta sınanmalıdır. Boru hattının

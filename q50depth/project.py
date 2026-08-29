@@ -228,15 +228,11 @@ def write_reduced(prj_path: Path, plan: Plan, keep_dss: bool = True) -> list[str
 
     Since the application computes exactly one plan, its working copy gets a
     project that declares only that plan.  Geometry and flow declarations are
-    left alone: HEC-RAS numbers its geometry preprocessor output files
-    (``.xNN``) from the project's geometry list, and removing entries makes it
-    look for a file that was never delivered --
-
-        Geometry preprocessor output file was not found.
-        ...\A_A_B_INPINAR.X04
-        Do you wish to run the preprocessor and continue?
-
-    -- after which it rebuilds the tables and drops the structure tables again.
+    left alone on purpose: they cost nothing to keep, and removing them is a
+    change whose effect on HEC-RAS's own bookkeeping is not understood.  (It
+    asks for a geometry preprocessor output file, ``.X04``, that the delivery
+    does not contain; that happens whether the list is reduced or not, so the
+    number does not come from the list.)
 
     The delivered project is not modified; only the copy is.
 
