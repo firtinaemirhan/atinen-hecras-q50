@@ -14,6 +14,7 @@ from . import (
     compute,
     depth,
     logging_setup,
+    hydrograph,
     project,
     raster,
     references,
@@ -106,6 +107,16 @@ def build_parser() -> argparse.ArgumentParser:
         "its inputs. 'auto' (default) does this only when another plan in the "
         "project is broken, because HEC-RAS aborts the whole project load in "
         "that case. Never touches the delivered project.",
+    )
+    parser.add_argument(
+        "--inflow",
+        choices=("dss", "inline"),
+        default="dss",
+        help="Where the boundary condition hydrograph comes from. 'dss' "
+        "(default) leaves the model reading its DSS file. 'inline' reads the "
+        "series from the DSS text export that ships with the project and "
+        "writes it into the working copy's flow file, so the run no longer "
+        "depends on HEC-RAS opening the DSS.",
     )
     parser.add_argument(
         "--rasmapper",
@@ -277,6 +288,34 @@ def run(argv: list[str] | None = None) -> int:
             )
             for line in dropped:
                 log.debug(f"        removed: {line}")
+
+        if args.inflow == "inline":
+            flow_path = working_folder / f"{working_prj.stem}.{selected.flow_file}"
+            pathname = hydrograph.dss_pathname(flow_path)
+            if pathname is None:
+                log.info(f"      {flow_path.name} reads no DSS series; nothing to embed")
+            else:
+                dss_reference = next(
+                    (r for r in plan_references if r.kind == "inflow"), None
+                )
+                export = (
+                    hydrograph.find_text_export(dss_reference.path, working_folder)
+                    if dss_reference
+                    else None
+                )
+                if export is None:
+                    raise UsageError(
+                        "No DSS text export was found in the project, so the "
+                        "inflow cannot be embedded.",
+                        hint="Leave --inflow at dss.",
+                    )
+                series = hydrograph.read_series(export, pathname)
+                hydrograph.embed(flow_path, series)
+                log.info(
+                    f"      embedded the inflow into {flow_path.name} from "
+                    f"{export.name}: {series.summary()}"
+                )
+                log.info(f"      series {series.pathname}")
 
         if args.rasmapper == "off":
             previous = project.set_plan_flag(working_plan, "Run RASMapper", " 0 ")

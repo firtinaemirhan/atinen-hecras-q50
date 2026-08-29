@@ -56,7 +56,7 @@ set Q50_CASE_DATA=C:\atinen\CASE_DATA
 python -m pytest tests -q
 ```
 
-**Beklenen:** `60 passed`. `CASE_DATA` yoksa gerçek veri testleri atlanır.
+**Beklenen:** `73 passed`. `CASE_DATA` yoksa gerçek veri testleri atlanır.
 `No module named pytest` derse 0. adımdaki `requirements-dev.txt` satırı
 atlanmıştır.
 
@@ -129,16 +129,26 @@ satırlarını hata mesajına ekler.** Yani ekrandaki çıktı çoğu zaman yete
 
 Sırayla denenecekler:
 
-1. Aynı komuta `--runner controller` ekleyin — COM otomasyonu
+1. **Hidrografı gömerek deneyin** — motor `READ_UN_HDF_STRUC` içinde
+   `access violation` ile çöküyorsa sınır koşulu okunamamış demektir:
+   ```bat
+   python main.py --project C:\atinen\CASE_DATA ^
+     --ras-dir "C:\Program Files (x86)\HEC\HEC-RAS\6.6" ^
+     --inflow inline --output OUTPUT\q50_depth.tif
+   ```
+   Seri projedeki DSS metin dökümünden okunup akış dosyasına yazılır; koşu
+   artık DSS'e bağlı olmaz. Beklenen satır:
+   `embedded the inflow into A_A_B_INPINAR.u05 ...: 15 ordinates at 5 min, peak 1.69 m3/s`
+2. Aynı komuta `--runner controller` ekleyin — COM otomasyonu
    (`RAS66.HECRASController`), GUI'nin kullandığı arayüz.
-2. Hazırlanmış kopyayı elle açıp bakın:
+3. Hazırlanmış kopyayı elle açıp bakın:
    ```bat
    python main.py --project C:\atinen\CASE_DATA --prepare-only
    ```
    sonra HEC-RAS'ta `workspace\A_A_B_INPINAR_Q50\A_A_B_INPINAR.prj` — bu proje
    yalnız Q50'yi bildirir, diğer bozuk planlar çıkarılmıştır. Plan listesinde
    tek bir Q50 görmelisiniz. `Run → Unsteady Flow Analysis → Compute`.
-3. Hâlâ düşüyorsa `OUTPUT\run.log` ile
+4. Hâlâ düşüyorsa `OUTPUT\run.log` ile
    `workspace\A_A_B_INPINAR_Q50\A_A_B_INPINAR.bco05` dosyalarını paylaşın.
 
 ---
