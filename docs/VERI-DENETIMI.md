@@ -9,13 +9,16 @@ python tools/audit_project.py --project /path/to/CASE_DATA
 ```text
 Audit of <CASE_DATA>
 
-BLOCKER (5)
+BLOCKER (8)
 -------------
   plan p03                     uses unsteady flow u01, which the project file does not declare (the file exists on disk)
   plan p04 inflow              boundary condition reads ..\..\akarcay_debi.dss, which does not resolve
   plan p05 inflow              boundary condition reads .\_CBS\akarcay_debiler\akarcay_debi.dss, which does not resolve
   plan p06 inflow              boundary condition reads .\_CBS\akarcay_debiler\akarcay_debi.dss, which does not resolve
   plan p07 inflow              boundary condition reads .\_CBS\akarcay_debiler\akarcay_debi.dss, which does not resolve
+  geometry g01                 A_A_B_INPINAR.g01.hdf lacks Geometry/Structures/Property Tables, Geometry/GeomPreprocess; the unsteady engine reads these and crashes without them
+  geometry g02                 A_A_B_INPINAR.g02.hdf lacks Geometry/Structures/Property Tables, Geometry/GeomPreprocess; the unsteady engine reads these and crashes without them
+  geometry g03                 A_A_B_INPINAR.g03.hdf lacks Geometry/Structures/Property Tables, Geometry/GeomPreprocess; the unsteady engine reads these and crashes without them
 
 WARNING (23)
 -------------
@@ -64,7 +67,7 @@ NOTE (18)
   stray plan file              Backup.p01 looks like a plan but belongs to no project
   rasmap references            38 declared, 10 missing
 
-Summary: 5 blocker, 23 warning, 18 note
+Summary: 8 blocker, 23 warning, 18 note
 ```
 
 ---
@@ -85,6 +88,29 @@ diyor — proje klasörünün iki üstü, yani teslim paketinin tamamen dışı.
 
 Bu dört akış dosyasının hiçbirinde hidrograf gömülü değil (`Flow Hydrograph= 0`),
 yani DSS olmadan senaryo çalıştırılamaz.
+
+**6–8. Üç geometri dosyasının da ön işlenmiş tabloları yok.**
+`A_A_B_INPINAR.g01/g02/g03.hdf` dosyalarında `Geometry/Structures` var ama
+`Geometry/Structures/Property Tables` ve `Geometry/GeomPreprocess` yok. Unsteady
+motoru başlarken tam olarak bu tabloları okuyor (`READ_UN_HDF_STRUC`) ve
+bulamayınca **eksik olduğunu söylemek yerine çöküyor**:
+
+```
+Performing Unsteady Flow Simulation  HEC-RAS 6.6 September 2024
+forrtl: severe (157): Program Exception - access violation
+RasUnsteady.exe   READ_UN_HDF_STRUC   330   Read_UN_HDF_STRUC_GRP.for
+RasUnsteady.exe   SNETREAL2           179   Snetreal2.for
+RasUnsteady.exe   UNET_START          144   Unet_start.for
+Error with program: RasUnsteady.exe  Exit Code = 157
+```
+
+Geometri ön işlemcisini yeniden çalıştırmak yetmiyor: o yalnızca 2D akış alanı
+tablolarını üretiyor (*"Computing 2D Flow Area 'inpinar' tables"*), yapı
+tablolarına dokunmuyor. Yani `Run HTab=-1` ile her koşuda aynı yere düşülüyor.
+
+Tablolar aslında teslim paketinde **var** — orijinal başarılı koşunun ürettiği
+`A_A_B_INPINAR.p05.hdf` içinde eksiksiz bir `Geometry` grubu duruyor, aynı
+geometri ve aynı arazi için.
 
 ### Bunun pratik sonucu
 
@@ -110,8 +136,16 @@ komut satırından hem de HEC-RAS arayüzünden elle açıldığında aynı hata
    bildiriliyor; açılamayan diğer planlar listeden çıkarılıyor. Böylece
    HEC-RAS'ın yükleyeceği başka bir şey kalmıyor. Bu adım yalnızca başka bir
    plan bozuksa yapılıyor (`--trim-project auto`, varsayılan).
-4. **Önceki koşumdan kalan sonuç dosyasını siliyor**, yarım bir HDF'in yeni
+4. **Geometri dosyasını yeniden kuruyor.** Eksik ön işlenmiş tablolar, teslim
+   edilen sonuç dosyasındaki eksiksiz `Geometry` grubundan alınıp çalışma
+   kopyasının `g03.hdf` dosyasına yazılıyor; geometri dosyasının kendi kök
+   öznitelikleri korunuyor. Ardından plan dosyasında `Run HTab=-1 → 0`
+   yapılıyor, çünkü ön işlemci yeniden çalışırsa o tabloları tekrar siler.
+5. **RASMapper'ın hazır harita üretimini kapatıyor.**
+6. **Önceki koşumdan kalan sonuç dosyasını siliyor**, yarım bir HDF'in yeni
    koşuyu kirletmemesi için.
+7. İstenirse (`--inflow inline`) **sınır koşulu hidrografını akış dosyasına
+   gömüyor**, böylece koşu DSS okumaya hiç bağlı kalmıyor.
 
 Bunların hiçbiri `CASE_DATA`'ya dokunmuyor; çalışma sonundaki bütünlük
 kontrolü bunu her koşuda kanıtlıyor.

@@ -44,7 +44,7 @@ Case study belgesinin her maddesi ve bu depodaki karşılığı.
 
 | Teslim kalemi | Dosya |
 | --- | --- |
-| Kaynak kod | `main.py`, `q50depth/` (13 modül), `tools/preview.py`, `tools/audit_project.py` |
+| Kaynak kod | `main.py`, `q50depth/` (14 modül), `tools/preview.py`, `tools/audit_project.py` |
 | Çıktı | [`OUTPUT/q50_depth.tif`](OUTPUT/q50_depth.tif) — bkz. aşağıdaki not |
 | Bağımlılıklar | `requirements.txt`, `requirements-windows.txt`, `requirements-dev.txt` |
 | README | bu dosya |
@@ -141,6 +141,7 @@ python main.py --project PATH [--ras-dir PATH] [seçenekler]
 | `--workspace PATH` | Projenin kopyalanacağı çalışma dizini. Varsayılan `workspace/`. |
 | `--use-existing-results` | HEC-RAS'ı çalıştırmaz, projede hazır duran sonuçları okur. Geliştirme ve yeniden üretim içindir. |
 | `--trim-project {auto,always,never}` | Çalışma kopyasındaki proje dosyasını seçilen plana indirger. `auto` (varsayılan) bunu yalnızca projedeki *başka* bir plan bozuksa yapar. |
+| `--geometry {auto,recompute}` | Teslim edilen geometri dosyası ön işlenmiş tablolarını taşımıyorsa ne yapılacağı. `auto` (varsayılan) çalışma kopyasının geometrisini, teslim edilen sonuç dosyasındaki eksiksiz olandan yeniden kurar ve HEC-RAS'a ön işlemciyi yeniden çalıştırmamasını söyler. |
 | `--inflow {dss,inline}` | Sınır koşulu hidrografının kaynağı. `dss` (varsayılan) modeli kendi DSS dosyasını okumaya bırakır. `inline` seriyi projedeki DSS metin dökümünden okuyup çalışma kopyasının akış dosyasına gömer; koşu artık DSS'e bağlı olmaz. |
 | `--rasmapper {off,on}` | HEC-RAS hesap sonrası RASMapper'ın hazır harita üretimini çalıştırsın mı. Varsayılan `off`: rasteri zaten biz üretiyoruz ve teslim edilen RASMapper yapılandırması paketten çıkarılmış katmanlara bakıyor. |
 | `--prepare-only` | Çalışma kopyasını hazırlayıp durur (kopyala, yolları onar, projeyi indirge). HEC-RAS arayüzünde elle incelemek için. |
@@ -201,6 +202,7 @@ Modüller:
 | `q50depth/errors.py` | Hata sınıfları ve çıkış kodları |
 | `q50depth/references.py` | Planın dışarıdan okuduğu dosyalar ve onarımı |
 | `q50depth/hydrograph.py` | DSS metin dökümünden sınır koşulu serisi |
+| `q50depth/geometry.py` | Eksik ön işlenmiş geometri tablolarının onarımı |
 | `q50depth/logging_setup.py` | Konsol ve dosya günlüğü |
 
 ## Q50 senaryosunu nasıl belirledim
@@ -320,24 +322,52 @@ raporluyor ve geriye **yarım bir `p05.hdf`** kalıyor.
 5. **Önceki koşumdan kalan sonuç dosyasını siler**, yarım bir HDF yeni koşuyu
    kirletmesin diye.
 
-#### Motorun çöküşü ve hidrografı gömme
+#### Motorun çöküşü: eksik geometri tabloları
 
-Yukarıdakiler yapıldıktan sonra HEC-RAS geometriyi sorunsuz işledi ama motor
-hemen çöktü:
+Yukarıdakiler yapıldıktan sonra HEC-RAS geometriyi işledi ama motor hemen çöktü:
 
 ```
 Performing Unsteady Flow Simulation  HEC-RAS 6.6 September 2024
 forrtl: severe (157): Program Exception - access violation
 RasUnsteady.exe   READ_UN_HDF_STRUC   330   Read_UN_HDF_STRUC_GRP.for
+RasUnsteady.exe   SNETREAL2           179   Snetreal2.for
+RasUnsteady.exe   UNET_START          144   Unet_start.for
 Error with program: RasUnsteady.exe  Exit Code = 157
 ```
 
-`READ_UN_HDF_STRUC`, motorun *unsteady* olay verisini okuduğu yer. Q50 akış
-dosyasında hidrograf gömülü değil (`Flow Hydrograph= 0`); veri DSS'ten
-gelecek. Başarılı olan orijinal koşunun sonuç dosyasında bu seri duruyor:
+`READ_UN_HDF_STRUC`, motorun **yapı tablolarını** okuduğu yer. Teslim edilen
+geometri dosyalarında o tablolar yok:
+
+| Grup | `g03.hdf` (teslim) | `p05.hdf` (başarılı koşu) |
+| --- | --- | --- |
+| `Geometry/Structures` | ✅ | ✅ |
+| `Geometry/Structures/Property Tables` | ❌ | ✅ |
+| `Geometry/GeomPreprocess` | ❌ | ✅ |
+| `Geometry/Cross Sections` | ❌ | ✅ |
+
+Geometri ön işlemcisini yeniden çalıştırmak çözmüyor — o yalnızca 2D akış alanı
+tablolarını üretiyor (*"Computing 2D Flow Area 'inpinar' tables"*), yapı
+tablolarına dokunmuyor. Bu yüzden `Run HTab=-1` ile her koşu aynı yere düşüyor.
+
+Ama tablolar teslim paketinde **var**: orijinal koşunun ürettiği `p05.hdf`
+aynı geometri ve aynı arazi için eksiksiz bir `Geometry` grubu taşıyor.
+Uygulama çalışma kopyasının `g03.hdf` dosyasını ondan yeniden kuruyor
+(geometri dosyasının kendi kök öznitelikleri korunur) ve `Run HTab=-1 → 0`
+yaparak ön işlemcinin tabloları tekrar silmesini engelliyor. `--geometry
+recompute` ile bu davranış kapatılabilir.
+
+```
+A_A_B_INPINAR.g03.hdf is missing 2 preprocessed group(s) the unsteady engine reads on start-up
+A_A_B_INPINAR.g03.hdf rebuilt from A_A_B_INPINAR.p05.hdf (added Geometry/Structures/Property Tables, Geometry/GeomPreprocess)
+told HEC-RAS not to re-run the geometry preprocessor (Run HTab -1 -> 0); it would drop those tables again
+```
+
+#### Hidrografı gömme
+
+Q50 akış dosyasında hidrograf gömülü değil (`Flow Hydrograph= 0`); veri
+DSS'ten geliyor. Başarılı orijinal koşunun sonucunda seri duruyor:
 `Event Conditions/Unsteady/Boundary Conditions/Flow Hydrographs/2D: inpinar
-BCLine: inflow`, shape `(15, 2)`. Sınır koşulu okunamayınca motor onu
-okumaya çalışırken çöküyor — anlamlı bir hata vermeden.
+BCLine: inflow`, shape `(15, 2)`.
 
 `--inflow inline` bu bağımlılığı tamamen kaldırır. Projede DSS'in DssVue metin
 dökümü de var (`akarcay_debi.txt`); seri oradan okunup çalışma kopyasının akış

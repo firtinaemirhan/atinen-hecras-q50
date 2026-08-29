@@ -56,7 +56,7 @@ set Q50_CASE_DATA=C:\atinen\CASE_DATA
 python -m pytest tests -q
 ```
 
-**Beklenen:** `73 passed`. `CASE_DATA` yoksa gerçek veri testleri atlanır.
+**Beklenen:** `76 passed`. `CASE_DATA` yoksa gerçek veri testleri atlanır.
 `No module named pytest` derse 0. adımdaki `requirements-dev.txt` satırı
 atlanmıştır.
 
@@ -129,8 +129,8 @@ satırlarını hata mesajına ekler.** Yani ekrandaki çıktı çoğu zaman yete
 
 Sırayla denenecekler:
 
-1. **Hidrografı gömerek deneyin** — motor `READ_UN_HDF_STRUC` içinde
-   `access violation` ile çöküyorsa sınır koşulu okunamamış demektir:
+1. **Hidrografı da gömerek deneyin** — sınır koşulunu DSS'ten okumayı tamamen
+   devre dışı bırakır:
    ```bat
    python main.py --project C:\atinen\CASE_DATA ^
      --ras-dir "C:\Program Files (x86)\HEC\HEC-RAS\6.6" ^

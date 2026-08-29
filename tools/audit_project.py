@@ -23,6 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from q50depth import geometry as geometry_module  # noqa: E402
 from q50depth import project as project_module  # noqa: E402
 
 ENCODING = "latin-1"
@@ -146,6 +147,21 @@ def audit(root: Path) -> Report:
                     f"{flow} stores no hydrograph ordinates; it depends on the DSS file",
                 )
         report.add("NOTE", f"plan {number}", f"{title} (geom {geom}, flow {flow})")
+
+    # --- preprocessed geometry tables the unsteady engine reads on start-up ---
+    for number in sorted({g for g in geometries}):
+        geometry_hdf = folder / f"{stem}.{number}.hdf"
+        if not geometry_hdf.is_file():
+            report.add("NOTE", f"geometry {number}", "has no preprocessed HDF next to it")
+            continue
+        absent = geometry_module.missing_tables(geometry_hdf)
+        if absent:
+            report.add(
+                "BLOCKER",
+                f"geometry {number}",
+                f"{geometry_hdf.name} lacks {', '.join(absent)}; the unsteady engine "
+                "reads these and crashes without them",
+            )
 
     # --- files on disk that the project does not declare ---
     for pattern, registry, label in (

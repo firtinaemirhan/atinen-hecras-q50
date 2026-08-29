@@ -1,6 +1,6 @@
-2026-08-29 18:35:54,041  INFO     q50depth 1.0.0  on Darwin 24.6.0, python 3.12.13
-2026-08-29 18:35:54,041  INFO     started 2026-08-29T18:35:54+03:00
-2026-08-29 18:35:54,041  DEBUG    arguments: {'project': PosixPath('/private/var/folders/6_/85f5rh6905jdmwtlxrhrvz_m0000gn/T/pytest-of-emirhanfirtina/pytest-25/test_missing_project_exits_cle0/nothing'), 'ras_dir': None, 'output': PosixPath('OUTPUT/q50_depth.tif'), 'scenario': 'Q50', 'workspace': PosixPath('workspace'), 'overwrite_workspace': False, 'keep_workspace': False, 'use_existing_results': True, 'trim_project': 'auto', 'inflow': 'dss', 'rasmapper': 'off', 'prepare_only': False, 'runner': 'cmdr', 'cores': None, 'resolution': None, 'min_depth': 0.0, 'integrity': 'fast', 'no_verify': False, 'log': None, 'verbose': False}
-2026-08-29 18:35:54,042  ERROR    
-2026-08-29 18:35:54,042  ERROR    ERROR: No HEC-RAS project file found under /private/var/folders/6_/85f5rh6905jdmwtlxrhrvz_m0000gn/T/pytest-of-emirhanfirtina/pytest-25/test_missing_project_exits_cle0/nothing
-2026-08-29 18:35:54,042  ERROR           A HEC-RAS .prj file contains 'Plan File=' lines. Coordinate system .prj files do not; those are ignored on purpose.
+2026-08-29 20:03:02,284  INFO     q50depth 1.0.0  on Darwin 24.6.0, python 3.12.13
+2026-08-29 20:03:02,284  INFO     started 2026-08-29T20:03:02+03:00
+2026-08-29 20:03:02,284  DEBUG    arguments: {'project': PosixPath('/private/var/folders/6_/85f5rh6905jdmwtlxrhrvz_m0000gn/T/pytest-of-emirhanfirtina/pytest-27/test_missing_project_exits_cle0/nothing'), 'ras_dir': None, 'output': PosixPath('OUTPUT/q50_depth.tif'), 'scenario': 'Q50', 'workspace': PosixPath('workspace'), 'overwrite_workspace': False, 'keep_workspace': False, 'use_existing_results': True, 'trim_project': 'auto', 'geometry': 'auto', 'inflow': 'dss', 'rasmapper': 'off', 'prepare_only': False, 'runner': 'cmdr', 'cores': None, 'resolution': None, 'min_depth': 0.0, 'integrity': 'fast', 'no_verify': False, 'log': None, 'verbose': False}
+2026-08-29 20:03:02,285  ERROR    
+2026-08-29 20:03:02,285  ERROR    ERROR: No HEC-RAS project file found under /private/var/folders/6_/85f5rh6905jdmwtlxrhrvz_m0000gn/T/pytest-of-emirhanfirtina/pytest-27/test_missing_project_exits_cle0/nothing
+2026-08-29 20:03:02,285  ERROR           A HEC-RAS .prj file contains 'Plan File=' lines. Coordinate system .prj files do not; those are ignored on purpose.

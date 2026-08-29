@@ -208,3 +208,52 @@ def test_compute_messages_are_read_from_the_results_file_when_no_log_was_written
     with pytest.raises(ComputeError) as error:
         compute.verify_results(hdf, prj, "p05")
     assert "terrain not found" in (error.value.hint or "")
+
+
+def _geometry_file(path: Path, *, complete: bool) -> Path:
+    with h5py.File(path, "w") as handle:
+        handle.attrs["File Type"] = np.bytes_(b"HEC-RAS Geometry")
+        handle.attrs["Units System"] = np.bytes_(b"SI Units")
+        handle.create_group("Geometry/Structures")
+        handle.create_dataset("Geometry/Structures/Attributes", data=np.arange(2))
+        if complete:
+            handle.create_dataset(
+                "Geometry/Structures/Property Tables/Table", data=np.arange(5)
+            )
+            handle.create_dataset("Geometry/GeomPreprocess/Node Info", data=np.arange(3))
+    return path
+
+
+def test_missing_preprocessed_tables_are_detected(tmp_path: Path):
+    from q50depth import geometry
+
+    incomplete = _geometry_file(tmp_path / "MODEL.g03.hdf", complete=False)
+    assert geometry.missing_tables(incomplete) == geometry.REQUIRED
+    complete = _geometry_file(tmp_path / "other.g03.hdf", complete=True)
+    assert geometry.missing_tables(complete) == ()
+    assert geometry.missing_tables(tmp_path / "absent.hdf") == geometry.REQUIRED
+
+
+def test_geometry_is_rebuilt_from_the_results_file(tmp_path: Path):
+    from q50depth import geometry
+
+    incomplete = _geometry_file(tmp_path / "MODEL.g03.hdf", complete=False)
+    results_hdf = _geometry_file(tmp_path / "MODEL.p05.hdf", complete=True)
+    with h5py.File(results_hdf, "r+") as handle:
+        handle.attrs["File Type"] = np.bytes_(b"HEC-RAS Results")
+
+    repair = geometry.rebuild_from_results(incomplete, results_hdf)
+    assert geometry.missing_tables(incomplete) == ()
+    assert len(repair.added) == 2
+    with h5py.File(incomplete, "r") as handle:
+        assert handle.attrs["File Type"] == b"HEC-RAS Geometry", "still a geometry file"
+        assert "Results" not in handle, "only the Geometry group is taken"
+
+
+def test_rebuild_refuses_when_the_results_file_is_no_better(tmp_path: Path):
+    from q50depth import geometry
+
+    incomplete = _geometry_file(tmp_path / "MODEL.g03.hdf", complete=False)
+    also_incomplete = _geometry_file(tmp_path / "MODEL.p05.hdf", complete=False)
+    with pytest.raises(ComputeError, match="does not carry a complete geometry"):
+        geometry.rebuild_from_results(incomplete, also_incomplete)

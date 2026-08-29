@@ -13,8 +13,9 @@ from . import (
     __version__,
     compute,
     depth,
-    logging_setup,
+    geometry,
     hydrograph,
+    logging_setup,
     project,
     raster,
     references,
@@ -107,6 +108,16 @@ def build_parser() -> argparse.ArgumentParser:
         "its inputs. 'auto' (default) does this only when another plan in the "
         "project is broken, because HEC-RAS aborts the whole project load in "
         "that case. Never touches the delivered project.",
+    )
+    parser.add_argument(
+        "--geometry",
+        choices=("auto", "recompute"),
+        default="auto",
+        help="What to do when the delivered geometry file is missing its "
+        "preprocessed tables. 'auto' (default) rebuilds the working copy's "
+        "geometry from the complete one inside the delivered results file and "
+        "tells HEC-RAS not to regenerate it. 'recompute' leaves HEC-RAS to "
+        "rebuild the tables itself, which does not restore the structure tables.",
     )
     parser.add_argument(
         "--inflow",
@@ -288,6 +299,25 @@ def run(argv: list[str] | None = None) -> int:
             )
             for line in dropped:
                 log.debug(f"        removed: {line}")
+
+        if args.geometry == "auto":
+            geometry_hdf = working_folder / f"{working_prj.stem}.{selected.geometry_file}.hdf"
+            absent = geometry.missing_tables(geometry_hdf)
+            if absent:
+                log.info(
+                    f"      {geometry_hdf.name} is missing {len(absent)} preprocessed "
+                    "group(s) the unsteady engine reads on start-up"
+                )
+                repair = geometry.rebuild_from_results(
+                    geometry_hdf, results.results_path_for(selected.path)
+                )
+                log.info(f"      {repair.line()}")
+                previous = project.set_plan_flag(working_plan, "Run HTab", " 0 ")
+                if previous is not None and previous.strip() != "0":
+                    log.info(
+                        "      told HEC-RAS not to re-run the geometry preprocessor "
+                        f"(Run HTab {previous} -> 0); it would drop those tables again"
+                    )
 
         if args.inflow == "inline":
             flow_path = working_folder / f"{working_prj.stem}.{selected.flow_file}"
