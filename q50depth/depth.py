@@ -70,8 +70,8 @@ def _grid_aligned_to(source: rasterio.DatasetReader, bounds) -> tuple[Grid, Wind
     """Grid snapped to the terrain's own pixels, so terrain is read verbatim."""
     left, bottom, right, top = bounds
     transform = source.transform
-    col_start, row_start = ~transform * (left, top)
-    col_stop, row_stop = ~transform * (right, bottom)
+    col_start, row_start = ~transform @ (left, top)
+    col_stop, row_stop = ~transform @ (right, bottom)
     col_start, row_start = int(np.floor(col_start)), int(np.floor(row_start))
     col_stop, row_stop = int(np.ceil(col_stop)), int(np.ceil(row_stop))
     window = Window(col_start, row_start, col_stop - col_start, row_stop - row_start)
