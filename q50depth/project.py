@@ -295,6 +295,34 @@ def write_reduced(prj_path: Path, plan: Plan, keep_dss: bool = True) -> list[str
     return dropped
 
 
+def set_plan_flag(plan_path: Path, key: str, value: str) -> str | None:
+    """Change one ``Key=Value`` line in a plan file, preserving its newlines.
+
+    Returns the previous value, or ``None`` if the key was not there.
+
+    Used to switch off RASMapper's stored-map generation in the working copy:
+    this application builds the depth raster itself, and the delivered
+    ``.rasmap`` points at scenario layers that were removed from the delivery,
+    so running it adds failure modes without adding anything to the result.
+    """
+    raw = plan_path.read_bytes()
+    newline = _newline(raw)
+    lines = raw.decode(_ENCODING).splitlines()
+    previous: str | None = None
+
+    for index, line in enumerate(lines):
+        name, separator, current = line.partition("=")
+        if separator and name.strip() == key:
+            previous = current.strip()
+            lines[index] = f"{key}={value}"
+            break
+
+    if previous is None:
+        return None
+    plan_path.write_bytes((newline.join(lines) + newline).encode(_ENCODING))
+    return previous
+
+
 def scenario_pattern(scenario: str) -> re.Pattern[str]:
     """Build a boundary-checked pattern for a return-period label.
 

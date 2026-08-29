@@ -18,6 +18,7 @@ hangi araçların hangi amaçla kullanıldığının belirtilmesini istiyor. Bey
 | Kütüphane | `ras-commander` API imzalarının çıkarılması | Paket kuruldu, `inspect.signature` ile gerçek imzalar okundu — belgeden veya hatırdan yazılmadı |
 | Kod | Tüm Python modüllerinin yazılması | Uçtan uca gerçek veri üzerinde çalıştırıldı |
 | Test | 44 testin ve sentetik veri üreticilerinin yazılması | `pytest` ile çalıştırıldı |
+| Teşhis | Windows'ta HEC-RAS'ın düşme nedeninin bulunması | Proje sistematik olarak denetlendi (`tools/audit_project.py`); yedi planın beşinin yüklenemediği dosya dosya gösterildi |
 | Belge | README ve bu dosya | İçerdiği her sayı çalıştırma çıktısından alındı |
 
 ## Uygulanan kurallar
@@ -30,7 +31,11 @@ hangi araçların hangi amaçla kullanıldığının belirtilmesini istiyor. Bey
 3. **Çalışmayan bir özellik teslim edilmedi.** Eğimli su yüzeyi enterpolasyonu
    denendi, fiziksel olarak imkânsız sonuç verdiği ölçülünce kaldırıldı ve
    gerekçesi README'ye yazıldı.
-4. **Doğrulanamayan tek adım işaretlendi.** HEC-RAS çalıştırma kodu macOS'ta
+4. **Bir hata iki kez teşhis edildi.** İlk teşhis (yalnız p05'in DSS yolu)
+   eksikti; Windows'ta hata tekrarlayınca varsayıma dönülmedi, proje baştan
+   denetlendi ve asıl neden bulundu: HEC-RAS bütün planları yüklüyor, beşi
+   bozuk. Bu ders `docs/VERI-DENETIMI.md`'ye yazıldı.
+5. **Doğrulanamayan tek adım işaretlendi.** HEC-RAS çalıştırma kodu macOS'ta
    sınanamadı; README'nin sınırlamalar bölümünde açıkça belirtildi.
 
 ## Sorumluluk

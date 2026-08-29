@@ -157,3 +157,22 @@ def test_verify_results_accepts_a_finished_run(tmp_path: Path):
         handle.create_group("Plan Data/Plan Information")
         handle.create_group("Results")
     compute.verify_results(hdf, prj, "p05")  # must not raise
+
+
+def test_plan_flag_is_changed_in_place(tmp_path: Path):
+    plan = tmp_path / "MODEL.p05"
+    plan.write_bytes(
+        b"Plan Title=X\r\nRun RASMapper=-1\r\nRun PostProcess=-1\r\n"
+    )
+    assert project.set_plan_flag(plan, "Run RASMapper", " 0 ") == "-1"
+    raw = plan.read_bytes()
+    assert b"Run RASMapper= 0 \r\n" in raw
+    assert b"Run PostProcess=-1" in raw, "other settings untouched"
+    assert raw.count(b"\n") == raw.count(b"\r\n"), "CRLF preserved"
+
+
+def test_plan_flag_reports_a_key_that_is_not_there(tmp_path: Path):
+    plan = tmp_path / "MODEL.p05"
+    plan.write_bytes(b"Plan Title=X\r\n")
+    assert project.set_plan_flag(plan, "Run RASMapper", " 0 ") is None
+    assert plan.read_bytes() == b"Plan Title=X\r\n"

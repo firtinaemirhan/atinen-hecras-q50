@@ -141,6 +141,7 @@ python main.py --project PATH [--ras-dir PATH] [seçenekler]
 | `--workspace PATH` | Projenin kopyalanacağı çalışma dizini. Varsayılan `workspace/`. |
 | `--use-existing-results` | HEC-RAS'ı çalıştırmaz, projede hazır duran sonuçları okur. Geliştirme ve yeniden üretim içindir. |
 | `--trim-project {auto,always,never}` | Çalışma kopyasındaki proje dosyasını seçilen plana indirger. `auto` (varsayılan) bunu yalnızca projedeki *başka* bir plan bozuksa yapar. |
+| `--rasmapper {off,on}` | HEC-RAS hesap sonrası RASMapper'ın hazır harita üretimini çalıştırsın mı. Varsayılan `off`: rasteri zaten biz üretiyoruz ve teslim edilen RASMapper yapılandırması paketten çıkarılmış katmanlara bakıyor. |
 | `--prepare-only` | Çalışma kopyasını hazırlayıp durur (kopyala, yolları onar, projeyi indirge). HEC-RAS arayüzünde elle incelemek için. |
 | `--runner {cmdr,controller}` | HEC-RAS'ın sürülme yolu. Varsayılan `cmdr`. |
 | `--cores N` | HEC-RAS'ın kullanacağı çekirdek sayısı. |
@@ -310,7 +311,11 @@ raporluyor ve geriye **yarım bir `p05.hdf`** kalıyor.
    girdileri ve `DSS File=dss` gibi bozuk satırlar çıkarılır. Geri kalan her
    ayar olduğu gibi kalır. Bu adım varsayılan olarak **yalnızca başka bir plan
    bozuksa** yapılır (`--trim-project auto`); sağlıklı bir projeye dokunulmaz.
-4. **Önceki koşumdan kalan sonuç dosyasını siler**, yarım bir HDF yeni koşuyu
+4. **RASMapper'ın hazır harita üretimini kapatır** (`Run RASMapper=-1` → `0`).
+   Rasteri bu uygulama üretiyor; RASMapper'ın işi çıktımıza bir şey katmıyor,
+   buna karşılık `.rasmap` içindeki 10 katman referansı çözülmüyor. Açmak için
+   `--rasmapper on`.
+5. **Önceki koşumdan kalan sonuç dosyasını siler**, yarım bir HDF yeni koşuyu
    kirletmesin diye.
 
 Hesap bittikten sonra sonuç dosyası ayrıca **doğrulanır**: `Plan Data` ve

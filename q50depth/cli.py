@@ -108,6 +108,15 @@ def build_parser() -> argparse.ArgumentParser:
         "that case. Never touches the delivered project.",
     )
     parser.add_argument(
+        "--rasmapper",
+        choices=("off", "on"),
+        default="off",
+        help="Whether HEC-RAS should also run RASMapper's stored-map generation "
+        "after computing. Off by default: this application produces the raster "
+        "itself, and the delivered RASMapper configuration references scenario "
+        "layers that are not in the delivery. Only the working copy is changed.",
+    )
+    parser.add_argument(
         "--prepare-only",
         action="store_true",
         help="Build the working copy (copy, repair paths, reduce the project) "
@@ -268,6 +277,14 @@ def run(argv: list[str] | None = None) -> int:
             )
             for line in dropped:
                 log.debug(f"        removed: {line}")
+
+        if args.rasmapper == "off":
+            previous = project.set_plan_flag(working_plan, "Run RASMapper", " 0 ")
+            if previous is not None and previous != "0":
+                log.info(
+                    "      switched RASMapper stored-map generation off in the "
+                    f"working copy (was {previous}); the raster is built here, not there"
+                )
 
         if not args.prepare_only and compute.clear_stale_results(
             results.results_path_for(working_plan)
