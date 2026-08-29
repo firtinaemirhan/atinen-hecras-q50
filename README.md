@@ -602,9 +602,12 @@ En önemli iki test, düzeltilen iki hatayı sabitler:
 - **Depodaki çıktı hazır sonuçlardan üretildi.** Hesap adımı Windows'ta
   çalıştırılıp dosya yenilenecek; GeoTIFF etiketi `HEC_RAS_EXECUTED=False`
   olduğu sürece bu geçerlidir.
-- **Referans çıktı ile sayısal karşılaştırma yapılmadı.** Sezer Bey'in
-  toplantıda gösterdiği çıktının bir kopyası elimde yok; karşılaştırma
-  görsel olarak yapıldı.
+- **Referans karşılaştırması görsel düzeydedir.** Toplantı görüntüsünün
+  coğrafi referanslı bir kopyası olmadığından karşılaştırma piksel bazında
+  değil, biçim ve konum düzeyinde yapıldı — ve **örtüşüyor**:
+  ![referans karşılaştırması](docs/referans_karsilastirma.png)
+  Referanstaki pürüzsüz şerit su değil, projenin 1D nehir geometrisi;
+  taşkın lekeleri üretilen haritayla aynı konumda.
 
 ### Denenip vazgeçilen bir yüzey yöntemi
 

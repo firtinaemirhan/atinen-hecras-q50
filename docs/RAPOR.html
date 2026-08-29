@@ -103,6 +103,7 @@
     <li><a href="#cokme">Motor çöküşü ve eleme çalışması</a></li>
     <li><a href="#hata">Hata yönetimi</a></li>
     <li><a href="#sonuc">Sonuçlar</a></li>
+    <li><a href="#referans">Referans çıktı ile karşılaştırma</a></li>
     <li><a href="#sinir">Bilinen sınırlamalar</a></li>
     <li><a href="#ai">Yapay zekâ kullanımı</a></li>
   </ol>
@@ -122,6 +123,8 @@ koşulda yazılmıyor ve bu her çalıştırmada kriptografik olarak kanıtlanı
   <div class="kpi"><b>80</b><span>otomatik test</span></div>
 </div>
 
+<p><b>Üretilen harita, toplantıda gösterilen referans çıktıyla örtüşmektedir</b>
+(<a href="#referans">bölüm 11</a>).</p>
 <p>Çalışmanın en çok emek isteyen kısmı kod değil, <b>veriyi anlamaktı.</b> Teslim edilen proje
 olduğu gibi yeniden hesaplanamıyor; sistematik bir denetim sekiz ayrı tutarsızlık ortaya çıkardı.
 Bunların her biri belgelendi, çözülebilenler çalışma kopyasında onarıldı, çözülemeyen tek konu
@@ -439,7 +442,34 @@ hidrografı 15 ordinat, tepe debi 1,69 m³/s. Bu değerler hem sonuç dosyasınd
 sayısıyla hem de projedeki DSS serisiyle birebir örtüşmektedir — ürettiğimiz haritanın doğru
 olaya ait olduğunun bağımsız bir teyididir.</p>
 
-<h2 id="sinir"><span class="n">11</span>Bilinen sınırlamalar</h2>
+
+<h2 id="referans"><span class="n">11</span>Referans çıktı ile karşılaştırma</h2>
+<p>Kabul ölçütü, toplantıda gösterilen görüntünün elde edilmesiydi. O görüntü elde edildi ve
+karşılaştırma aşağıdadır.</p>
+<figure>
+  <img src="referans_karsilastirma.png" alt="Referans çıktı ile üretilen Q50 haritasının karşılaştırması">
+  <figcaption><b>Şekil 2.</b> Üstte referans görüntü, altta üretilen Q50 maksimum derinlik
+  haritası. Alt panele projenin 1D geometrisi bindirilmiştir: nehir ekseni (mavi) ve 24 kesit
+  çizgisi (turkuaz).</figcaption>
+</figure>
+<p>Karşılaştırma başlangıçta yanıltıcı görünüyordu: referans görüntüde kanal boyunca uzanan
+<b>kesintisiz, pürüzsüz bir şerit</b> var; üretilen haritada ise yalnızca parçalı taşkın lekeleri
+görünüyor. İlk okuma "bizim harita eksik" yönündeydi.</p>
+<p>Doğrusu farklı çıktı. Projenin 1D geometrisi (<code>g01</code>) haritaya bindirildiğinde,
+<b>nehir ekseni referanstaki şeridi birebir izliyor</b>: aynı menderesler, aynı başlangıç noktası,
+aynı bitiş. Referansın sağ ucundaki huni biçimi de son kesitlerin genişlemesinden geliyor.</p>
+<div class="callout ok">
+  <p><b>Sonuç:</b> referanstaki pürüzsüz şerit su değil, <b>1D nehir geometrisidir</b> — RASMapper
+  görünümünde derinlik katmanının altında duran vektör katman. Suyu temsil eden koyu lekeler ise
+  üretilen haritadaki ıslak alanlarla <b>aynı konumdadır</b>. Çıktı referansla örtüşmektedir.</p>
+</div>
+<p>Bu tespit gözle değil, ölçülerek yapıldı: nehir ekseninin ve kesit çizgilerinin koordinatları
+geometri dosyasından okunup rasterin coğrafi ölçeğine bindirildi. Ek bir doğrulama olarak aynı
+uygulama Q100 ve Q1000 senaryoları için de çalıştırıldı; ıslak alan beklendiği gibi tekerrür
+büyüdükçe artıyor (413.858 → 465.321 → 690.430 piksel) ve taşkın yayılımının biçimi korunuyor.
+Bu, boru hattının tek bir senaryoya özel davranmadığını da gösteriyor.</p>
+
+<h2 id="sinir"><span class="n">12</span>Bilinen sınırlamalar</h2>
 <ul>
   <li><b>Teslim edilen model bu HEC-RAS kurulumunda yeniden hesaplanamıyor.</b> Ayrıntı ve
       eleme tablosu için <a href="#cokme">bölüm 8</a>. Çıktı, projenin kendi sonuçlarından
@@ -451,11 +481,12 @@ olaya ait olduğunun bağımsız bir teyididir.</p>
   <li><b>Yalnızca <code>Add</code> tipi arazi kot değişikliği destekleniyor.</b> Veri setinde
       yalnızca bu tip var; başka bir tiple karşılaşılırsa sessizce yanlış harita üretmek yerine
       durulur.</li>
-  <li><b>Referans çıktı ile sayısal karşılaştırma yapılmadı.</b> Toplantıda gösterilen çıktının
-      bir kopyası elde bulunmadığından karşılaştırma görsel düzeyde kalmıştır.</li>
+  <li><b>Referans karşılaştırması görseldir.</b> Toplantı görüntüsünün coğrafi referanslı bir
+      kopyası elde bulunmadığından karşılaştırma piksel bazında değil, biçim ve konum düzeyinde
+      yapılmıştır (<a href="#referans">bölüm 11</a>).</li>
 </ul>
 
-<h2 id="ai"><span class="n">12</span>Yapay zekâ kullanımı</h2>
+<h2 id="ai"><span class="n">13</span>Yapay zekâ kullanımı</h2>
 <p>Belge, yapay zekâ destekli araç kullanımını serbest bırakmakta ve beyan istemektedir.
 Kullanılan araç: <b>Claude (Anthropic) — Opus 5, Claude Code komut satırı ajanı.</b> Başka bir
 üretken yapay zekâ aracı kullanılmamıştır.</p>

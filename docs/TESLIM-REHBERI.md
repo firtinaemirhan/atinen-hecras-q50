@@ -33,6 +33,7 @@ Belgenin 5. maddesindeki liste ve bu pakettteki karşılıkları:
 | Dosya | İçerik |
 | --- | --- |
 | `q50_depth_onizleme.png` | Çıktının görüntüsü ve derinlik dağılımı |
+| `referans_karsilastirma.png` | Toplantıda gösterilen referans çıktı ile karşılaştırma |
 | `uygulama/docs/VERI-DENETIMI.md` | Teslim edilen projedeki sekiz tutarsızlığın ayrıntılı analizi |
 | `uygulama/docs/veri-denetimi-ciktisi.txt` | Denetim aracının ham çıktısı |
 | `uygulama/docs/WINDOWS-DOGRULAMA.md` | Windows'ta adım adım sağlama listesi |
@@ -79,7 +80,12 @@ Ayrıntılı kullanım ve tüm seçenekler: `uygulama/README.md`.
 
 ---
 
-## Bilinmesi gereken iki şey
+## Bilinmesi gereken üç şey
+
+**0. Çıktı referansla örtüşüyor.** Toplantıda gösterilen görüntüdeki pürüzsüz
+şerit su değil, projenin 1D nehir geometrisidir; taşkını temsil eden koyu
+lekeler ise üretilen haritadaki ıslak alanlarla aynı konumdadır. Karşılaştırma
+raporun 11. bölümünde ve `referans_karsilastirma.png` dosyasında.
 
 **1. Orijinal veriye yazılmıyor.** Uygulama proje ağacını bir çalışma dizinine
 kopyalar ve hesabı orada yapar. Bu, her çalıştırmada kaynak klasörün parmak izi
