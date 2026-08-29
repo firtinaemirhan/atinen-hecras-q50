@@ -14,7 +14,11 @@ Sırayla gidin; her adımın altında "beklenen" var, tutmuyorsa ne bakılacağ�
 - [ ] Python **3.13 veya 3.14** (python.org installer, "Add python.exe to PATH"
       işaretli). Her iki sürümde de 41 paketin tamamı hazır tekerlek olarak iner.
       3.12 kullanmayın: artık Windows installer'ı yayınlanmıyor.
-- [ ] Depo klonlandı, `CASE_DATA` makinede
+- [ ] Depo klonlandı (ya da ZIP olarak indirildi)
+- [ ] `CASE_DATA` makinede ve şu dosya duruyor:
+      `<CASE_DATA>\AKA_AFY_BAY_INPINAR_1\1_Modeller\A_A_B_INPINAR.prj`
+      (ZIP bazen fazladan bir klasör katmanı ekler; `--project` alt klasörleri
+      kendisi tarar, yanlış katman verilse de `.prj` bulunur)
 
 Git kuruluysa:
 
@@ -31,7 +35,11 @@ python -m venv .venv
 .venv\Scripts\activate.bat
 python -m pip install --upgrade pip
 pip install -r requirements-windows.txt
+pip install -r requirements-dev.txt
 ```
+
+İkinci satır testleri ve `tools/preview.py`'yi çalıştırmak için gerekli
+(`pytest`, `matplotlib`); uygulamanın kendisi bunlara ihtiyaç duymaz.
 
 ⚠️ `-r` işaretini atlamayın. `pip install .` veya `pip install C:\atinen\...`
 demeyin — proje `python main.py` ile çalışır, paket olarak kurulması gerekmez.
@@ -53,6 +61,8 @@ betiğini engelleyebilir.
 ```bat
 python -m pytest tests -q
 ```
+
+`No module named pytest` derse 0. adımdaki `requirements-dev.txt` satırı atlanmıştır.
 
 **Beklenen:** 44 test geçer. `CASE_DATA` yoksa gerçek veri testleri atlanır.
 `CASE_DATA` başka yerdeyse:
