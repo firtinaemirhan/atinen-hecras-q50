@@ -7,16 +7,16 @@ Hazırlayan: Emirhan Fırtına · 29 Ağustos 2026
 
 ## Nereden başlamalı
 
-**[`RAPOR.html`](RAPOR.html)** — teknik rapor. Tarayıcıda açın; yazdırma
-görünümü PDF için hazırdır (Ctrl/Cmd + P). Q50'nin nasıl belirlendiği, HEC-RAS
+**[`RAPOR.pdf`](RAPOR.pdf)** — teknik rapor. Aynı içerik
+[`RAPOR.html`](RAPOR.html) olarak da pakette. Q50'nin nasıl belirlendiği, HEC-RAS
 ile nasıl etkileşim kurulduğu, çıktının nasıl doğrulandığı ve hataların nasıl
-yönetildiği burada anlatılıyor.
+yönetildiği burada anlatılıyor; belgenin 6. ve 7. maddelerinin karşılığıdır.
 
 ---
 
 ## Teslim kalemleri
 
-Belgenin 5. maddesindeki liste ve bu pakettteki karşılıkları:
+Belgenin 5. maddesindeki liste ve bu paketteki karşılıkları:
 
 | Teslim kalemi | Konum |
 | --- | --- |
@@ -25,8 +25,8 @@ Belgenin 5. maddesindeki liste ve bu pakettteki karşılıkları:
 | **Bağımlılıklar** | `uygulama/requirements.txt`, `requirements-windows.txt`, `requirements-dev.txt` |
 | **README** | `uygulama/README.md` |
 | **Çalışma kaydı** | `uygulama/OUTPUT/run.log`, `uygulama/docs/ornek-calisma-kaydi.txt` |
-| **Teknik açıklama** (madde 6) | `RAPOR.html` |
-| **Yapay zekâ beyanı** (madde 7) | `RAPOR.html` bölüm 12, `uygulama/docs/AI-KULLANIMI.md` |
+| **Teknik açıklama** (madde 6) | `RAPOR.pdf` (ve `RAPOR.html`) |
+| **Yapay zekâ beyanı** (madde 7) | `RAPOR.pdf` bölüm 10, `uygulama/docs/AI-KULLANIMI.md` |
 
 ### Ek belgeler
 
@@ -85,7 +85,7 @@ Ayrıntılı kullanım ve tüm seçenekler: `uygulama/README.md`.
 **0. Çıktı referansla örtüşüyor.** Toplantıda gösterilen görüntüdeki pürüzsüz
 şerit su değil, projenin 1D nehir geometrisidir; taşkını temsil eden koyu
 lekeler ise üretilen haritadaki ıslak alanlarla aynı konumdadır. Karşılaştırma
-raporun 11. bölümünde ve `referans_karsilastirma.png` dosyasında.
+raporun 6. bölümünde ve `referans_karsilastirma.png` dosyasında.
 
 **1. Orijinal veriye yazılmıyor.** Uygulama proje ağacını bir çalışma dizinine
 kopyalar ve hesabı orada yapar. Bu, her çalıştırmada kaynak klasörün parmak izi

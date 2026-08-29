@@ -16,7 +16,13 @@ def test_ras_dir_is_required_for_a_real_run(case_project: Path, tmp_path: Path, 
 def test_missing_project_exits_cleanly(tmp_path: Path, capsys):
     empty = tmp_path / "nothing"
     empty.mkdir()
-    code = main(["--project", str(empty), "--use-existing-results"])
+    code = main(
+        [
+            "--project", str(empty),
+            "--use-existing-results",
+            "--output", str(tmp_path / "out.tif"),
+        ]
+    )
     assert code == 3  # ProjectError
     assert "No HEC-RAS project file" in capsys.readouterr().out
 
