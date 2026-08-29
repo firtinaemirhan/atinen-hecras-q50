@@ -108,10 +108,18 @@ python main.py ^
 ```
 
 **Beklenen:**
-- `[3/6] workspace   copying project to workspace\A_A_B_INPINAR_Q50` (bir-iki dakika, ~500 MB)
+- `[3/6] workspace   copying project to workspace\A_A_B_INPINAR_Q50` (bir-iki dakika, ~290 MB)
+- `[4/6] references  repairing 2 broken path(s) in the working copy` — veri
+  setindeki `.\_CBS\...` / `.\Q50\...` yolları çözülmüyor, çalışma kopyasında
+  onarılır (bkz. README, "Veri setindeki bozuk yol")
 - `[4/6] hec-ras     computing p05 via cmdr` ardından `success=True`
 - `[5/6]` bölümündeki sayılar 2. adımdakilerle **aynı** çıkmalı
 - `integrity   source unchanged (... files, fast check)`
+
+> **`Error in Loading Plan Data` görürseniz** ve onarım satırları çıkmadıysa,
+> elinizdeki sürüm eskidir — depoyu güncelleyin. Bu diyalog giriş DSS'inin
+> bulunamadığı anlamına gelir; ras-commander onu otomatik kapatır ve HEC-RAS
+> yarım bir `p05.hdf` yazar. Uygulama yarım dosyayı fark edip durur.
 
 **`cmdr` başarısız olursa** COM otomasyonunu deneyin — aynı komuta
 `--runner controller` ekleyin. Bu, HEC-RAS GUI'sinin kullandığı

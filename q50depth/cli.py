@@ -9,7 +9,19 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import __version__, compute, depth, logging_setup, project, raster, results, terrain, verify, workspace
+from . import (
+    __version__,
+    compute,
+    depth,
+    logging_setup,
+    project,
+    raster,
+    references,
+    results,
+    terrain,
+    verify,
+    workspace,
+)
 from .errors import Q50Error, UsageError
 
 DEFAULT_SCENARIO = "Q50"
@@ -197,10 +209,26 @@ def run(argv: list[str] | None = None) -> int:
         working_folder = workspace.prepare(source_folder, target, args.overwrite_workspace)
         working_prj = working_folder / source_prj.name
 
-    # ---- 3. compute ----
+    # ---- 3. the files the plan reads from outside itself ----
+    working_plan = working_folder / selected.path.name
+    plan_references = references.collect(working_folder, working_plan, selected.flow_file)
+    missing = [r for r in plan_references if not r.exists]
+    for reference in missing:
+        log.warning(
+            f"      note: {selected.number} references {reference.raw} "
+            f"({reference.kind}), which does not resolve in the project"
+        )
+
+    # ---- 4. compute ----
     if args.use_existing_results:
         log.info("[4/6] hec-ras     not run; using the results already in the project")
+        if missing:
+            log.info("      the missing references above matter only for a real run")
     else:
+        if missing:
+            log.info(f"[4/6] references  repairing {len(missing)} broken path(s) in the working copy")
+            for repair in references.repair(working_folder, plan_references):
+                log.info(f"      {repair.line()}")
         log.info(f"[4/6] hec-ras     computing {selected.number} via {args.runner}")
         outcome = compute.run_plan(
             project_folder=working_folder,
@@ -212,8 +240,7 @@ def run(argv: list[str] | None = None) -> int:
         )
         log.info(f"      {outcome.detail}, {outcome.seconds:.1f} s")
 
-    # ---- 4. read results, terrain, and build the depth grid ----
-    working_plan = working_folder / selected.path.name
+    # ---- 5. read results, terrain, and build the depth grid ----
     hdf_path = results.results_path_for(working_plan)
     plan_results = results.load(hdf_path)
     log.info(f"[5/6] results     {hdf_path.name}")

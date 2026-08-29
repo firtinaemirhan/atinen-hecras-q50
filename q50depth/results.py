@@ -164,6 +164,17 @@ def load(hdf_path: Path) -> PlanResults:
 
     with handle:
         file_type = _attr(handle, "File Type") or ""
+        if not file_type or "Plan Data" not in handle:
+            # HEC-RAS creates the results file at the start of a run and fills
+            # it in as it goes. A file with no type or no plan block is one
+            # that was abandoned mid-run.
+            raise ResultsError(
+                f"{hdf_path.name} is a partial results file: the run started but "
+                f"did not finish.",
+                hint=f"HEC-RAS wrote it and stopped. Its own log, "
+                f"{hdf_path.stem.rsplit('.', 1)[0]}.bco* in the same folder, says why; "
+                "a broken file reference or a dialog during loading is the usual cause.",
+            )
         if "Results" not in file_type:
             raise ResultsError(
                 f"{hdf_path.name} is a {file_type!r} file, not a HEC-RAS results file."

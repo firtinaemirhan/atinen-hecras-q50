@@ -257,6 +257,46 @@ dışı komut satırı anahtarı uydurulmamıştır. İki yol vardır:
 `--ras-dir` hem kurulum klasörünü hem doğrudan `Ras.exe` yolunu kabul eder,
 böylece standart dışı kurulumlar da çalışır. Yol koda gömülü değildir.
 
+### Veri setindeki bozuk yol
+
+Q50 planı çalıştırılabilir değil, çünkü giriş debisi projenin içinde değil.
+`A_A_B_INPINAR.u05` şunu diyor:
+
+```
+Flow Hydrograph= 0
+DSS File=.\_CBS\akarcay_debiler\akarcay_debi.dss
+DSS Path=/AKA_AFY_BAY_INPINAR_1/AKC_126_YM/DEBI/02May2025/5Minute/Q50/
+Use DSS=True
+```
+
+Yani sınır koşulu hidrografı bir DSS dosyasından okunuyor — ama o yol
+çözülmüyor: klasörün diskteki adı **`2_CBS`**, `_CBS` değil. Dosyanın kendisi
+yerinde (`2_CBS/akarcay_debiler/akarcay_debi.dss`, 8.4 MB), sadece modelin
+baktığı yerde değil. Aynı şekilde planın çıktı DSS'i `.\Q50\Q50.dss` için
+`Q50` klasörü hiç yok.
+
+Sonuç: HEC-RAS "Error in Loading Plan Data" diyaloğunu açıyor, hesap
+başlamadan duruyor ve **yarım bir `p05.hdf` yazıyor.** Sessizce, çünkü
+komut satırı çalıştırıcısı yine de "başarılı" raporluyor.
+
+Uygulama bunu hesaptan önce tespit ediyor (`q50depth/references.py`): planın
+ve akış dosyasının bildirdiği her DSS yolu çözülüyor, çözülmeyenler için proje
+ağacında aynı adlı dosya aranıyor. **Tam bir tane** bulunursa çalışma
+kopyasında modelin beklediği yola kopyalanıyor ve yapılan iş loga yazılıyor:
+
+```
+[4/6] references  repairing 2 broken path(s) in the working copy
+      .\_CBS\akarcay_debiler\akarcay_debi.dss -> copied into place from 2_CBS/akarcay_debiler/akarcay_debi.dss
+      .\Q50\Q50.dss -> created output folder
+```
+
+Hiç bulunamazsa veya birden fazla aday çıkarsa tahmin yürütmüyor, anlamlı
+hatayla duruyor — yanlış hidrografla hesaplanmış bir taşkın haritası,
+hesaplanmamış olmasından kötüdür.
+
+Bu onarım **yalnızca çalışma kopyasında** yapılır; `CASE_DATA` her koşulda
+olduğu gibi kalır ve bu, çalışma sonundaki bütünlük kontrolüyle kanıtlanır.
+
 **Orijinal veri korunur.** HEC-RAS bir planı çalıştırdığında proje klasörüne
 yazar (`.bco`, `.O0X`, `.r0X`, plan HDF'i güncellenir). Bu yüzden uygulama
 proje ağacını önce `workspace/` altına kopyalar ve hesabı orada yapar. Bunun
@@ -397,6 +437,9 @@ En önemli iki test, düzeltilen iki hatayı sabitler:
 - **Su yüzeyi hücre içinde sabit kabul edilir.** Modelin çözdüğü büyüklük
   budur. Sonuç, taşkın kenarında pürüzsüz değil tırtıklı bir sınır verir;
   RASMapper'ın eğimli su yüzeyi çizimine göre daha parçalı görünür.
+- **Veri setinde bozuk göreli yol var.** Model `.\_CBS\...` diyor, klasörün
+  adı `2_CBS`. Uygulama çalışma kopyasında onarıyor ve ne yaptığını yazıyor,
+  ama bu bir veri kusuru — düzeltilmesi gereken yer aslında proje dosyası.
 - **Sadece 2D akış alanları işlenir.** 1D kesit sonuçlarından derinlik
   ızgarası üretilmez; böyle bir planla çalıştırılırsa anlaşılır hata verir
   (p01, p02 bu durumda).
