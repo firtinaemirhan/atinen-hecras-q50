@@ -56,7 +56,7 @@ set Q50_CASE_DATA=C:\atinen\CASE_DATA
 python -m pytest tests -q
 ```
 
-**Beklenen:** `76 passed`. `CASE_DATA` yoksa gerçek veri testleri atlanır.
+**Beklenen:** `80 passed`. `CASE_DATA` yoksa gerçek veri testleri atlanır.
 `No module named pytest` derse 0. adımdaki `requirements-dev.txt` satırı
 atlanmıştır.
 
@@ -120,6 +120,12 @@ hesaplar. **Beklenen akış:**
 ```
 
 HEC-RAS penceresi açılıp kapanabilir, normal.
+
+**Geometri adımında ne görmek istiyoruz:** `HEC-RAS wrote the tables itself`.
+Bunun yerine `RasProcess.exe is not in ...` ya da `still missing: ...` görürseniz
+uygulama yedek yola geçer (tabloları teslim edilen sonuç dosyasından alır) ve
+`Run HTab -1 -> 0` yapar — o da geçerli bir yol, ama HEC-RAS'ın kendi yazdığı
+tablolar tercih edilir.
 
 ### Düşerse
 

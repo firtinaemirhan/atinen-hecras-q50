@@ -272,3 +272,45 @@ def test_rebuild_refuses_when_the_results_file_is_no_better(tmp_path: Path):
     also_incomplete = _geometry_file(tmp_path / "MODEL.p05.hdf", complete=False)
     with pytest.raises(ComputeError, match="does not carry a complete geometry"):
         geometry.rebuild_from_results(incomplete, also_incomplete)
+
+
+def test_hecras_geometry_tool_is_reported_missing_not_guessed(tmp_path: Path):
+    """Without RasProcess.exe the caller must fall back, not pretend it ran."""
+    from q50depth import geometry
+
+    ran, detail = geometry.complete_with_hecras(
+        tmp_path / "MODEL.g03.hdf", None, tmp_path
+    )
+    assert ran is False
+    assert "RasProcess.exe" in detail
+
+
+def test_terrain_timestamp_is_set_from_the_geometry(tmp_path: Path):
+    import os
+    from datetime import datetime
+
+    from q50depth import geometry
+
+    terrain = tmp_path / "merge.Clone.hdf"
+    terrain.write_bytes(b"terrain")
+    (tmp_path / "merge.Clone.vrt").write_bytes(b"vrt")
+    geometry_hdf = tmp_path / "MODEL.g03.hdf"
+    with h5py.File(geometry_hdf, "w") as handle:
+        group = handle.create_group("Geometry")
+        group.attrs["Terrain Filename"] = np.bytes_(b".\\merge.Clone.hdf")
+        group.attrs["Terrain File Date"] = np.bytes_(b"10JUN2026 17:49:26")
+
+    applied = geometry.align_terrain_timestamp(geometry_hdf, tmp_path)
+    assert applied == "10JUN2026 17:49:26"
+    expected = datetime(2026, 6, 10, 17, 49, 26).timestamp()
+    assert os.path.getmtime(terrain) == pytest.approx(expected, abs=1)
+    assert os.path.getmtime(tmp_path / "merge.Clone.vrt") == pytest.approx(expected, abs=1)
+
+
+def test_terrain_alignment_is_skipped_when_nothing_is_recorded(tmp_path: Path):
+    from q50depth import geometry
+
+    geometry_hdf = tmp_path / "MODEL.g03.hdf"
+    with h5py.File(geometry_hdf, "w") as handle:
+        handle.create_group("Geometry")
+    assert geometry.align_terrain_timestamp(geometry_hdf, tmp_path) is None

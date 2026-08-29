@@ -141,7 +141,7 @@ python main.py --project PATH [--ras-dir PATH] [seçenekler]
 | `--workspace PATH` | Projenin kopyalanacağı çalışma dizini. Varsayılan `workspace/`. |
 | `--use-existing-results` | HEC-RAS'ı çalıştırmaz, projede hazır duran sonuçları okur. Geliştirme ve yeniden üretim içindir. |
 | `--trim-project {auto,always,never}` | Çalışma kopyasındaki proje dosyasını seçilen plana indirger. `auto` (varsayılan) bunu yalnızca projedeki *başka* bir plan bozuksa yapar. |
-| `--geometry {auto,recompute}` | Teslim edilen geometri dosyası ön işlenmiş tablolarını taşımıyorsa ne yapılacağı. `auto` (varsayılan) çalışma kopyasının geometrisini, teslim edilen sonuç dosyasındaki eksiksiz olandan yeniden kurar ve HEC-RAS'a ön işlemciyi yeniden çalıştırmamasını söyler. |
+| `--geometry {auto,rasprocess,harvest,none}` | Teslimde eksik olan ön işlenmiş geometri tablolarının nasıl sağlanacağı. `auto` (varsayılan) önce HEC-RAS'ın kendi `RasProcess.exe` aracına yazdırır, olmazsa teslim edilen sonuç dosyasındaki eksiksiz geometriden alır. |
 | `--inflow {dss,inline}` | Sınır koşulu hidrografının kaynağı. `dss` (varsayılan) modeli kendi DSS dosyasını okumaya bırakır. `inline` seriyi projedeki DSS metin dökümünden okuyup çalışma kopyasının akış dosyasına gömer; koşu artık DSS'e bağlı olmaz. |
 | `--rasmapper {off,on}` | HEC-RAS hesap sonrası RASMapper'ın hazır harita üretimini çalıştırsın mı. Varsayılan `off`: rasteri zaten biz üretiyoruz ve teslim edilen RASMapper yapılandırması paketten çıkarılmış katmanlara bakıyor. |
 | `--prepare-only` | Çalışma kopyasını hazırlayıp durur (kopyala, yolları onar, projeyi indirge). HEC-RAS arayüzünde elle incelemek için. |
@@ -353,12 +353,33 @@ Geometri ön işlemcisini yeniden çalıştırmak çözmüyor — o yalnızca 2D
 tablolarını üretiyor (*"Computing 2D Flow Area 'inpinar' tables"*), yapı
 tablolarına dokunmuyor. Bu yüzden `Run HTab=-1` ile her koşu aynı yere düşüyor.
 
-Ama tablolar teslim paketinde **var**: orijinal koşunun ürettiği `p05.hdf`
-aynı geometri ve aynı arazi için eksiksiz bir `Geometry` grubu taşıyor.
-Uygulama çalışma kopyasının `g03.hdf` dosyasını ondan yeniden kuruyor
-(geometri dosyasının kendi kök öznitelikleri korunur) ve `Run HTab=-1 → 0`
-yaparak ön işlemcinin tabloları tekrar silmesini engelliyor. `--geometry
-recompute` ile bu davranış kapatılabilir.
+**Doğru çözüm: tabloları HEC-RAS'a ürettirmek.** HEC-RAS'ın ayrı bir aracı var:
+
+```
+RasProcess.exe CompleteGeometry <geom.hdf> RasMapFilename=<proje.rasmap>
+```
+
+Bu, RASMapper'ın *Compute Geometry* işleminin GUI'siz karşılığı ve depolama
+alanı/yapı bağlantılarını ve 2D özellik tablolarını yazıyor — üstelik HEC-RAS'ın
+kontrol ettiği **kaynak veri özetleriyle (source data hash)** damgalayarak, yani
+sonraki koşuda "güncel" sayılıyor ve yeniden kurulmuyor. Uygulama bunu
+`--ras-dir` içinde bulup çalıştırıyor. Aracın kendi başarı bayrağına
+güvenilmiyor (o 1D nehir kenar çizgilerini de arıyor, bu modelde yoklar);
+**sonuç dosyaya bakılarak doğrulanıyor**: tablolar geldi mi, gelmedi mi.
+
+**Yedek yol:** `RasProcess.exe` bulunamazsa ya da tabloları yazamazsa, tablolar
+teslim edilen `p05.hdf` içindeki eksiksiz `Geometry` grubundan alınıp çalışma
+kopyasının `g03.hdf` dosyasına yazılıyor (geometri dosyasının kendi kök
+öznitelikleri korunur). Bu yolla gelen tablolarda kaynak veri özeti olmadığı
+için ayrıca `Run HTab=-1 → 0` yapılıyor; yoksa ön işlemci onları tekrar siler.
+
+`--geometry rasprocess` / `harvest` / `none` ile hangi yolun kullanılacağı
+zorlanabilir.
+
+**Arazi zaman damgası** da hizalanıyor: geometri `Terrain File Date` kaydediyor
+ve HEC-RAS bunu arazi dosyasının değiştirilme zamanıyla karşılaştırıyor. Proje
+başka makineye kopyalanınca bu tutmuyor, HEC-RAS *"Associated terrain has been
+updated"* deyip tabloları yeniden kuruyor.
 
 ```
 A_A_B_INPINAR.g03.hdf is missing 2 preprocessed group(s) the unsteady engine reads on start-up
@@ -367,11 +388,7 @@ set the terrain file's timestamp to the one the geometry records (10JUN2026 17:4
 told HEC-RAS not to re-run the geometry preprocessor (Run HTab -1 -> 0); it would drop those tables again
 ```
 
-Arazi zaman damgası da hizalanır: geometri `Terrain File Date` kaydediyor ve
-HEC-RAS bunu arazi dosyasının değiştirilme zamanıyla karşılaştırıyor. Proje
-başka bir makineye kopyalanınca bu karşılaştırma tutmuyor ve HEC-RAS
-*"Associated terrain has been updated"* deyip tabloları yeniden kuruyor —
-yani yapı tablolarını yine düşürüyor.
+
 
 #### Hidrografı gömme
 
@@ -523,7 +540,7 @@ pip install -r requirements-dev.txt
 python -m pytest tests -q
 ```
 
-44 test. Gerçek veriye ihtiyaç duyanlar (`tests/test_real_data.py`) veri yoksa
+80 test. Gerçek veriye ihtiyaç duyanlar (`tests/test_real_data.py`) veri yoksa
 otomatik atlanır; veri varsayılan olarak `~/Desktop/CASE_DATA` altında aranır,
 `Q50_CASE_DATA` ortam değişkeniyle değiştirilebilir. Geri kalanı sentetik
 verilerle çalışır: `tests/conftest.py` tuzağı minyatür halde yeniden kurar

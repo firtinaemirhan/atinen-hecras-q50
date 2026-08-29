@@ -24,7 +24,7 @@ from . import (
     verify,
     workspace,
 )
-from .errors import Q50Error, UsageError
+from .errors import ComputeError, Q50Error, UsageError
 
 DEFAULT_SCENARIO = "Q50"
 DEFAULT_OUTPUT = Path("OUTPUT/q50_depth.tif")
@@ -111,13 +111,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--geometry",
-        choices=("auto", "recompute"),
+        choices=("auto", "rasprocess", "harvest", "none"),
         default="auto",
-        help="What to do when the delivered geometry file is missing its "
-        "preprocessed tables. 'auto' (default) rebuilds the working copy's "
-        "geometry from the complete one inside the delivered results file and "
-        "tells HEC-RAS not to regenerate it. 'recompute' leaves HEC-RAS to "
-        "rebuild the tables itself, which does not restore the structure tables.",
+        help="How to supply the preprocessed geometry tables the delivery is "
+        "missing. 'auto' (default) asks HEC-RAS's own RasProcess.exe to write "
+        "them and, if that is unavailable, takes them from the complete "
+        "geometry inside the delivered results file. 'rasprocess' and "
+        "'harvest' force one of the two; 'none' leaves the geometry alone.",
     )
     parser.add_argument(
         "--inflow",
@@ -300,31 +300,62 @@ def run(argv: list[str] | None = None) -> int:
             for line in dropped:
                 log.debug(f"        removed: {line}")
 
-        if args.geometry == "auto":
+        if args.geometry != "none":
             geometry_hdf = working_folder / f"{working_prj.stem}.{selected.geometry_file}.hdf"
             absent = geometry.missing_tables(geometry_hdf)
             if absent:
                 log.info(
-                    f"      {geometry_hdf.name} is missing {len(absent)} preprocessed "
-                    "group(s) the unsteady engine reads on start-up"
+                    f"[4/6] geometry    {geometry_hdf.name} is missing "
+                    f"{len(absent)} preprocessed group(s) the unsteady engine reads: "
+                    + ", ".join(a.split("/", 1)[1] for a in absent)
                 )
-                repair = geometry.rebuild_from_results(
-                    geometry_hdf, results.results_path_for(selected.path)
-                )
-                log.info(f"      {repair.line()}")
                 aligned = geometry.align_terrain_timestamp(geometry_hdf, working_folder)
                 if aligned:
                     log.info(
-                        f"      set the terrain file's timestamp to the one the "
-                        f"geometry records ({aligned}), so HEC-RAS does not treat "
-                        "it as updated"
+                        "      set the terrain timestamp to the one the geometry "
+                        f"records ({aligned}), so HEC-RAS does not call it updated"
                     )
-                previous = project.set_plan_flag(working_plan, "Run HTab", " 0 ")
-                if previous is not None and previous.strip() != "0":
-                    log.info(
-                        "      told HEC-RAS not to re-run the geometry preprocessor "
-                        f"(Run HTab {previous} -> 0); it would drop those tables again"
+
+                authored_by_hecras = False
+                if args.geometry in ("auto", "rasprocess") and args.ras_dir is not None:
+                    rasmap = working_folder / f"{working_prj.stem}.rasmap"
+                    ran, detail = geometry.complete_with_hecras(
+                        geometry_hdf, rasmap if rasmap.is_file() else None, args.ras_dir
                     )
+                    log.info(f"      {detail}")
+                    if ran:
+                        absent = geometry.missing_tables(geometry_hdf)
+                        authored_by_hecras = not absent
+                        log.info(
+                            "      HEC-RAS wrote the tables itself"
+                            if authored_by_hecras
+                            else "      still missing: "
+                            + ", ".join(a.split("/", 1)[1] for a in absent)
+                        )
+
+                if absent and args.geometry in ("auto", "harvest"):
+                    repair = geometry.rebuild_from_results(
+                        geometry_hdf, results.results_path_for(selected.path)
+                    )
+                    log.info(f"      {repair.line()}")
+                    absent = geometry.missing_tables(geometry_hdf)
+
+                if absent:
+                    raise ComputeError(
+                        f"{geometry_hdf.name} still lacks {', '.join(absent)}.",
+                        hint="The unsteady engine reads these on start-up and "
+                        "crashes without them.",
+                    )
+
+                if not authored_by_hecras:
+                    # Tables taken from the results file carry no source-data
+                    # hash, so HEC-RAS would rebuild -- and lose -- them.
+                    previous = project.set_plan_flag(working_plan, "Run HTab", " 0 ")
+                    if previous is not None and previous.strip() != "0":
+                        log.info(
+                            "      told HEC-RAS not to re-run the geometry "
+                            f"preprocessor (Run HTab {previous.strip()} -> 0)"
+                        )
 
         if args.inflow == "inline":
             flow_path = working_folder / f"{working_prj.stem}.{selected.flow_file}"

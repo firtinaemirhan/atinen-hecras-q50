@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import os
 import re
+import subprocess
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -130,6 +131,53 @@ def _has_complete_geometry(results_hdf: Path) -> bool:
             return all(key in handle for key in REQUIRED)
     except OSError:
         return False
+
+
+def complete_with_hecras(
+    geometry_hdf: Path, rasmap: Path | None, ras_dir: Path, timeout: int = 1800
+) -> tuple[bool, str]:
+    """Ask HEC-RAS's own tool to derive the missing tables.
+
+    ``RasProcess.exe CompleteGeometry`` is the GUI-free equivalent of
+    RASMapper's *Compute Geometry*: it writes storage-area and structure
+    connectivity and the 2D property tables, stamped with the source-data
+    hashes HEC-RAS checks, so a later run treats them as current instead of
+    rebuilding them.  This is the right way to obtain the tables -- the
+    delivery simply does not include them.
+
+    The command line is the one ras-commander issues; its own success flag is
+    not trusted here because it also requires 1D river edge lines, which a 2D
+    model does not have.  What counts is whether the tables are there
+    afterwards, and the caller checks that.
+
+    Returns (ran, detail).  ``ran`` is False when the tool is not installed.
+    """
+    executable = Path(ras_dir).expanduser()
+    if executable.is_file() and executable.suffix.lower() == ".exe":
+        executable = executable.parent
+    executable = executable / "RasProcess.exe"
+    if not executable.is_file():
+        return False, f"{executable.name} is not in {executable.parent}"
+
+    arguments = [str(executable), "CompleteGeometry", str(geometry_hdf)]
+    if rasmap is not None and rasmap.is_file():
+        arguments.append(f"RasMapFilename={rasmap}")
+
+    try:
+        finished = subprocess.run(
+            arguments,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=str(geometry_hdf.parent),
+        )
+    except subprocess.TimeoutExpired:
+        return True, f"RasProcess.exe timed out after {timeout} s"
+    except OSError as exc:
+        return False, f"RasProcess.exe could not be started: {exc}"
+
+    output = " ".join((finished.stdout or "").split())[-300:]
+    return True, f"RasProcess.exe CompleteGeometry -> rc={finished.returncode} {output}".strip()
 
 
 def rebuild_from_results(geometry_hdf: Path, results_hdf: Path) -> Repair:
