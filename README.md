@@ -92,14 +92,15 @@ Beyan: [`docs/AI-KULLANIMI.md`](docs/AI-KULLANIMI.md).
 
 ## Kurulum
 
-Python 3.10+ gerekir. **Windows'ta 3.13 önerilir**: bağımlılıkların tamamının
-hazır `win_amd64` paketi vardır, hiçbir şey derlenmez. (3.12'nin artık Windows
-installer'ı yayınlanmıyor, güvenlik sürümlerinde yalnız kaynak dağıtılıyor.)
+Python 3.10+ gerekir. **Windows'ta 3.13 veya 3.14 kullanın**: bağımlılık
+ağacının tamamı (41 paket) bu iki sürümde hazır `win_amd64` tekerleği olarak
+iner, hiçbir şey derlenmez — kontrol edildi. 3.12 artık güvenlik sürümlerinde
+olduğu için python.org Windows installer'ı yayınlamıyor.
 
 **Windows (tam çalışma — HEC-RAS'ı da çalıştırır):**
 
 ```bat
-py -3.13 -m venv .venv
+python -m venv .venv
 .venv\Scripts\activate.bat
 python -m pip install --upgrade pip
 pip install -r requirements-windows.txt

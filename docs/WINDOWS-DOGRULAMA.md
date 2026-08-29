@@ -11,7 +11,8 @@ Sırayla gidin; her adımın altında "beklenen" var, tutmuyorsa ne bakılacağ�
 
 - [ ] **HEC-RAS 6.6** kurulu. Varsayılan yol:
       `C:\Program Files (x86)\HEC\HEC-RAS\6.6\Ras.exe`
-- [ ] Python **3.13** (python.org installer, "Add python.exe to PATH" işaretli).
+- [ ] Python **3.13 veya 3.14** (python.org installer, "Add python.exe to PATH"
+      işaretli). Her iki sürümde de 41 paketin tamamı hazır tekerlek olarak iner.
       3.12 kullanmayın: artık Windows installer'ı yayınlanmıyor.
 - [ ] Depo klonlandı, `CASE_DATA` makinede
 
@@ -33,9 +34,13 @@ pip install -r requirements-windows.txt
 ```
 
 **Beklenen:** her paket hazır `.whl` olarak iner, hiçbir şey derlenmez.
-**Tutmazsa:** çıktıda `building wheel for ...` görüyorsanız Python sürümü uyumsuz
-demektir — 3.13'e geçin. Komut İstemi (cmd) kullanın; PowerShell `activate` betiğini
-engelleyebilir.
+**Tutmazsa:** çıktıda `Building wheel for ...` görüyorsanız Python sürümü uyumsuz
+demektir — 3.13 veya 3.14'e geçin. Komut İstemi (cmd) kullanın; PowerShell `activate`
+betiğini engelleyebilir.
+
+> **Not.** Bağımlılık ağacı, 2014'ten kalma `pathlib` 1.0.1 paketini de getiriyor
+> (ras-commander üzerinden). Standart kütüphane `sys.path`'te önce geldiği için
+> gölgeleme olmuyor; kod ras-commander kurulu bir ortamda sınandı, 44 test geçti.
 
 ---
 
