@@ -415,9 +415,27 @@ def run(argv: list[str] | None = None) -> int:
             cores=args.cores,
         )
         log.info(f"      {outcome.detail}, {outcome.seconds:.1f} s")
-        compute.verify_results(
-            results.results_path_for(working_plan), working_prj, selected.number
-        )
+        try:
+            compute.verify_results(
+                results.results_path_for(working_plan), working_prj, selected.number
+            )
+        except ComputeError as failure:
+            # Say whether the repaired geometry survived the run. Without this
+            # one cannot tell "HEC-RAS rebuilt and lost the tables" from
+            # "the tables were there and something else broke".
+            after = geometry.missing_tables(
+                working_folder / f"{working_prj.stem}.{selected.geometry_file}.hdf"
+            )
+            state = (
+                "the geometry still has its preprocessed tables, so the crash is "
+                "not about them"
+                if not after
+                else "HEC-RAS rebuilt the geometry during the run and dropped: "
+                + ", ".join(a.split("/", 1)[1] for a in after)
+            )
+            raise ComputeError(
+                failure.message, f"{failure.hint or ''}\n  After the run: {state}"
+            ) from failure
 
     # ---- 5. read results, terrain, and build the depth grid ----
     hdf_path = results.results_path_for(working_plan)
