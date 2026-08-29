@@ -47,25 +47,79 @@ def clear_stale_results(plan_hdf: Path) -> bool:
     return False
 
 
-def _log_tail(prj_path: Path, plan_number: str, lines: int = 25) -> str:
-    """The tail of HEC-RAS's own computation log for this plan, if it wrote one."""
+def _hdf_compute_messages(plan_hdf: Path) -> str:
+    """HEC-RAS also stores its computation log inside the results file.
+
+    A run that aborted usually still wrote this, which makes it the best
+    account of what went wrong when no text log was produced.
+    """
+    if not plan_hdf.is_file():
+        return ""
+    try:
+        import h5py  # noqa: PLC0415
+
+        with h5py.File(plan_hdf, "r") as handle:
+            for key in (
+                "Results/Summary/Compute Messages (text)",
+                "Results/Unsteady/Summary/Compute Messages (text)",
+                "Results/Summary/Compute Messages",
+            ):
+                if key in handle:
+                    raw = handle[key][()]
+                    if isinstance(raw, bytes):
+                        return raw.decode("latin-1", errors="replace")
+                    if hasattr(raw, "tolist"):
+                        parts = raw.tolist()
+                        if isinstance(parts, bytes):
+                            return parts.decode("latin-1", errors="replace")
+                        return "\n".join(
+                            p.decode("latin-1", errors="replace") if isinstance(p, bytes) else str(p)
+                            for p in parts
+                        )
+    except (OSError, KeyError, ValueError):
+        return ""
+    return ""
+
+
+def _log_tail(prj_path: Path, plan_number: str, lines: int = 40) -> str:
+    """Whatever HEC-RAS wrote about this run, in order of usefulness.
+
+    The detailed messages are the ones the GUI shows in its computation
+    window. They live in a text file next to the plan, or -- when HEC-RAS did
+    not get far enough to write one -- inside the results file. ``.bco`` is
+    the last resort: it usually holds only the run banner.
+    """
     short = plan_number.lstrip("pP")
-    candidates = [
-        prj_path.with_suffix(f".bco{short}"),
-        prj_path.with_suffix(f".b{short}"),
-        prj_path.with_suffix(f".comp_msgs.txt"),
-    ]
-    for candidate in candidates:
-        if not candidate.is_file():
-            continue
-        try:
-            text = candidate.read_text(encoding="latin-1", errors="replace")
-        except OSError:
-            continue
+    plan_path = prj_path.with_suffix(f".p{short}")
+    plan_hdf = plan_path.with_name(plan_path.name + ".hdf")
+
+    sources: list[tuple[str, str]] = []
+    for candidate in (
+        Path(f"{plan_path}.computeMsgs.txt"),
+        Path(f"{plan_path}.comp_msgs.txt"),
+    ):
+        if candidate.is_file():
+            try:
+                sources.append((candidate.name, candidate.read_text("latin-1", errors="replace")))
+            except OSError:
+                pass
+
+    messages = _hdf_compute_messages(plan_hdf)
+    if messages.strip():
+        sources.append((f"{plan_hdf.name} -> Compute Messages", messages))
+
+    for candidate in (prj_path.with_suffix(f".bco{short}"), prj_path.with_suffix(f".b{short}")):
+        if candidate.is_file():
+            try:
+                sources.append((candidate.name, candidate.read_text("latin-1", errors="replace")))
+            except OSError:
+                pass
+
+    for name, text in sources:
         tail = [line.rstrip() for line in text.splitlines() if line.strip()][-lines:]
         if tail:
             body = "\n".join(f"    {line}" for line in tail)
-            return f"\n  HEC-RAS wrote this in {candidate.name}:\n{body}"
+            return f"\n  HEC-RAS wrote this in {name}:\n{body}"
     return ""
 
 

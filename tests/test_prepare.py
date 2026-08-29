@@ -176,3 +176,35 @@ def test_plan_flag_reports_a_key_that_is_not_there(tmp_path: Path):
     plan.write_bytes(b"Plan Title=X\r\n")
     assert project.set_plan_flag(plan, "Run RASMapper", " 0 ") is None
     assert plan.read_bytes() == b"Plan Title=X\r\n"
+
+
+def test_compute_messages_file_is_preferred_over_the_run_banner(tmp_path: Path):
+    """`.bco` usually holds only the banner; the real reason is in computeMsgs."""
+    prj = tmp_path / "MODEL.prj"
+    prj.write_text("Proj Title=MODEL\n", encoding="latin-1")
+    hdf = tmp_path / "MODEL.p05.hdf"
+    _partial_hdf(hdf)
+    (tmp_path / "MODEL.bco05").write_text("HEC-RAS banner only\n", encoding="latin-1")
+    (tmp_path / "MODEL.p05.computeMsgs.txt").write_text(
+        "Reading boundary conditions\nERROR: unable to open DSS file\n", encoding="latin-1"
+    )
+    with pytest.raises(ComputeError) as error:
+        compute.verify_results(hdf, prj, "p05")
+    hint = error.value.hint or ""
+    assert "unable to open DSS file" in hint
+    assert "banner only" not in hint
+
+
+def test_compute_messages_are_read_from_the_results_file_when_no_log_was_written(tmp_path: Path):
+    prj = tmp_path / "MODEL.prj"
+    prj.write_text("Proj Title=MODEL\n", encoding="latin-1")
+    hdf = tmp_path / "MODEL.p05.hdf"
+    with h5py.File(hdf, "w") as handle:
+        handle.attrs["File Type"] = np.bytes_(b"HEC-RAS Results")
+        handle.create_dataset(
+            "Results/Summary/Compute Messages (text)",
+            data=np.bytes_(b"Geometry preprocessor\nERROR: terrain not found\n"),
+        )
+    with pytest.raises(ComputeError) as error:
+        compute.verify_results(hdf, prj, "p05")
+    assert "terrain not found" in (error.value.hint or "")
