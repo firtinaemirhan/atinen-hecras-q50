@@ -312,7 +312,8 @@ En önemli iki test, düzeltilen iki hatayı sabitler:
 
 ## Bilinen sınırlamalar
 
-- **HEC-RAS çalıştırma adımı bu makinede doğrulanmadı.** Geliştirme macOS'ta
+- **HEC-RAS çalıştırma adımı bu makinede doğrulanmadı.** Windows'ta sağlama
+  için adım adım liste: [`docs/WINDOWS-DOGRULAMA.md`](docs/WINDOWS-DOGRULAMA.md). Geliştirme macOS'ta
   yapıldı; `compute.py` yalnızca gerçek API imzaları okunarak yazıldı
   (`ras-commander` 0.99.1 kurulup imzaları incelendi), fakat HEC-RAS
   macOS'ta bulunmadığı için o adım Windows'ta sınanmalıdır. Boru hattının
