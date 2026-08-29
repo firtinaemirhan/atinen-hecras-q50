@@ -1,0 +1,308 @@
+"""Command line entry point and run orchestration."""
+
+from __future__ import annotations
+
+import argparse
+import platform
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+from . import __version__, compute, depth, logging_setup, project, raster, results, terrain, verify, workspace
+from .errors import Q50Error, UsageError
+
+DEFAULT_SCENARIO = "Q50"
+DEFAULT_OUTPUT = Path("OUTPUT/q50_depth.tif")
+DEFAULT_WORKSPACE = Path("workspace")
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="q50depth",
+        description=(
+            "Find a return-period scenario in a HEC-RAS project, compute it, and "
+            "write the maximum water depth as a GeoTIFF."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "examples:\n"
+            "  # full run on Windows, HEC-RAS installed\n"
+            '  python main.py --project "D:/CASE_DATA" '
+            '--ras-dir "C:/Program Files (x86)/HEC/HEC-RAS/6.6"\n\n'
+            "  # rebuild the raster from results that already exist (no HEC-RAS needed)\n"
+            "  python main.py --project ~/Desktop/CASE_DATA --use-existing-results\n"
+        ),
+    )
+    parser.add_argument(
+        "--project",
+        required=True,
+        type=Path,
+        metavar="PATH",
+        help="HEC-RAS project folder (or any folder containing it).",
+    )
+    parser.add_argument(
+        "--ras-dir",
+        type=Path,
+        metavar="PATH",
+        help="HEC-RAS installation folder, or the full path to Ras.exe. "
+        "Required unless --use-existing-results is given.",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=DEFAULT_OUTPUT,
+        metavar="PATH",
+        help=f"Output GeoTIFF (default: {DEFAULT_OUTPUT}).",
+    )
+    parser.add_argument(
+        "--scenario",
+        default=DEFAULT_SCENARIO,
+        metavar="Qnnn",
+        help=f"Return-period label to look for (default: {DEFAULT_SCENARIO}).",
+    )
+    parser.add_argument(
+        "--workspace",
+        type=Path,
+        default=DEFAULT_WORKSPACE,
+        metavar="PATH",
+        help=f"Where the project is copied before computing (default: {DEFAULT_WORKSPACE}).",
+    )
+    parser.add_argument(
+        "--overwrite-workspace",
+        action="store_true",
+        help="Replace the workspace even if this tool did not create it.",
+    )
+    parser.add_argument(
+        "--keep-workspace",
+        action="store_true",
+        help="Do not report the workspace as removable at the end (it is never "
+        "deleted automatically; this only affects the closing message).",
+    )
+    parser.add_argument(
+        "--use-existing-results",
+        action="store_true",
+        help="Skip the HEC-RAS run and read the results already in the project. "
+        "For development and for re-deriving the raster; the delivered run "
+        "computes the plan.",
+    )
+    parser.add_argument(
+        "--runner",
+        choices=compute.RUNNERS,
+        default="cmdr",
+        help="How to drive HEC-RAS: 'cmdr' = command line runner (default), "
+        "'controller' = HECRASController COM automation.",
+    )
+    parser.add_argument(
+        "--cores",
+        type=int,
+        metavar="N",
+        help="Cores HEC-RAS may use (default: let HEC-RAS decide).",
+    )
+    parser.add_argument(
+        "--resolution",
+        type=float,
+        metavar="METRES",
+        help="Output pixel size. Default: the terrain's own resolution, which "
+        "needs no resampling.",
+    )
+    parser.add_argument(
+        "--min-depth",
+        type=float,
+        default=0.0,
+        metavar="METRES",
+        help="Depths at or below this become nodata (default: 0.0, i.e. keep any water).",
+    )
+    parser.add_argument(
+        "--integrity",
+        choices=("fast", "full", "off"),
+        default="fast",
+        help="How to prove the source data was not modified: 'fast' = size and "
+        "timestamp (default), 'full' = SHA-256 of every file, 'off' = skip.",
+    )
+    parser.add_argument(
+        "--no-verify",
+        action="store_true",
+        help="Report the scenario checks but do not fail on them.",
+    )
+    parser.add_argument("--log", type=Path, metavar="PATH", help="Run log file "
+                        "(default: <output folder>/run.log).")
+    parser.add_argument("--verbose", action="store_true", help="Debug output on the console.")
+    parser.add_argument("--version", action="version", version=f"q50depth {__version__}")
+    return parser
+
+
+def _describe_plans(log, selected, evidence, all_plans) -> None:
+    log.info("")
+    log.info("Plans listed by the project file:")
+    for plan in all_plans:
+        mark = ">>" if plan.number == selected.number else "  "
+        why = f"   <- matched on {', '.join(evidence[plan.number])}" if plan.number in evidence else ""
+        log.info(
+            f"  {mark} {plan.number}  {plan.title:<28}  short id: {plan.short_id:<24}"
+            f"geom {plan.geometry_file}  flow {plan.flow_file}{why}"
+        )
+    log.info("")
+
+
+def run(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+
+    output = args.output.expanduser()
+    log_path = (args.log or output.parent / "run.log").expanduser()
+    log = logging_setup.configure(log_path, args.verbose)
+    started = time.monotonic()
+
+    log.info(f"q50depth {__version__}  on {platform.system()} {platform.release()}, "
+             f"python {platform.python_version()}")
+    log.info(f"started {datetime.now(timezone.utc).astimezone().isoformat(timespec='seconds')}")
+    log.debug(f"arguments: {vars(args)}")
+
+    if not args.use_existing_results and args.ras_dir is None:
+        raise UsageError(
+            "--ras-dir is required to run HEC-RAS.",
+            hint="Give the HEC-RAS installation folder, or pass "
+            "--use-existing-results to rebuild the raster from results that "
+            "are already in the project.",
+        )
+
+    # ---- 1. find the project and resolve the scenario to exactly one plan ----
+    source_prj = project.find_project_file(args.project)
+    source_folder = source_prj.parent
+    log.info(f"[1/6] project     {source_prj}")
+    source_project = project.load_project(source_prj)
+    selected, evidence = project.select_plan(source_project, args.scenario)
+    _describe_plans(log, selected, evidence, source_project.plans)
+    log.info(
+        f"[2/6] scenario    {args.scenario} -> {selected.number} "
+        f"(pattern {project.scenario_pattern(args.scenario).pattern})"
+    )
+    if source_project.current_plan:
+        agrees = "agrees" if source_project.current_plan == selected.number else "DIFFERS"
+        log.info(
+            f"      the project's own 'Current Plan={source_project.current_plan}' "
+            f"{agrees} with the selection (not used to decide)"
+        )
+
+    # ---- 2. working copy, so the delivered data stays untouched ----
+    before = workspace.manifest(source_folder, args.integrity)
+    if args.use_existing_results:
+        working_folder, working_prj = source_folder, source_prj
+        log.info("[3/6] workspace   skipped (--use-existing-results reads the project read-only)")
+    else:
+        target = args.workspace / f"{source_prj.stem}_{args.scenario}"
+        log.info(f"[3/6] workspace   copying project to {target}")
+        working_folder = workspace.prepare(source_folder, target, args.overwrite_workspace)
+        working_prj = working_folder / source_prj.name
+
+    # ---- 3. compute ----
+    if args.use_existing_results:
+        log.info("[4/6] hec-ras     not run; using the results already in the project")
+    else:
+        log.info(f"[4/6] hec-ras     computing {selected.number} via {args.runner}")
+        outcome = compute.run_plan(
+            project_folder=working_folder,
+            prj_path=working_prj,
+            plan_number=selected.number,
+            ras_dir=args.ras_dir,
+            runner=args.runner,
+            cores=args.cores,
+        )
+        log.info(f"      {outcome.detail}, {outcome.seconds:.1f} s")
+
+    # ---- 4. read results, terrain, and build the depth grid ----
+    working_plan = working_folder / selected.path.name
+    hdf_path = results.results_path_for(working_plan)
+    plan_results = results.load(hdf_path)
+    log.info(f"[5/6] results     {hdf_path.name}")
+    log.info(f"      plan '{plan_results.plan_title}', short id '{plan_results.plan_short_id}', "
+             f"{plan_results.program_version}")
+    log.info(f"      window {plan_results.simulation_window}")
+    log.info(f"      2D areas: " + ", ".join(
+        f"{m.name} ({m.cell_count} cells)" for m in plan_results.meshes))
+
+    model_terrain = terrain.resolve(working_folder, plan_results.terrain_filename)
+    log.info(f"      terrain {model_terrain.raster_path.name}"
+             + (f" + {len(model_terrain.modifications)} elevation modifications"
+                if model_terrain.modifications else " (no modifications)"))
+
+    depth_result = depth.build(
+        plan_results,
+        model_terrain,
+        resolution=args.resolution,
+        min_depth=args.min_depth,
+    )
+    log.info(f"      grid {depth_result.grid.width} x {depth_result.grid.height} @ {depth_result.grid.resolution:g} m")
+    log.info(f"      wet cells {depth_result.wet_cells}/{depth_result.total_cells}, wet pixels {depth_result.wet_pixels}")
+    log.info(f"      depth max {depth_result.max_depth:.3f} m, mean {depth_result.mean_depth:.3f} m")
+
+    # ---- 5. verification ----
+    checks = verify.run(
+        source_project, selected, args.scenario, plan_results, depth_result, strict=not args.no_verify
+    )
+    log.info("")
+    log.info("Scenario verification:")
+    for check in checks:
+        log.info(f"  {check.line()}")
+    log.info("")
+
+    # ---- 6. write ----
+    crs = raster.crs_from_wkt(plan_results.projection_wkt)
+    tags = {
+        "TIFFTAG_SOFTWARE": f"q50depth {__version__}",
+        "SCENARIO": args.scenario,
+        "PLAN_NUMBER": selected.number,
+        "PLAN_TITLE": plan_results.plan_title,
+        "PLAN_SHORT_ID": plan_results.plan_short_id,
+        "GEOMETRY": plan_results.geometry_filename,
+        "FLOW_FILE": plan_results.flow_filename,
+        "SIMULATION_WINDOW": plan_results.simulation_window,
+        "HEC_RAS_VERSION": plan_results.program_version,
+        "SOURCE_RESULTS": hdf_path.name,
+        "TERRAIN": model_terrain.raster_path.name,
+        "TERRAIN_MODIFICATIONS": str(len(model_terrain.modifications)),
+        "QUANTITY": "maximum water depth",
+        "SURFACE_METHOD": "horizontal (cell-wise)",
+        "UNITS": "m",
+        "COMPUTED_AT": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "HEC_RAS_EXECUTED": str(not args.use_existing_results),
+    }
+    written = raster.write(output, depth_result, plan_results.projection_wkt, tags)
+    size_mb = written.stat().st_size / 1e6
+    log.info(f"[6/6] output      {written}  ({size_mb:.1f} MB, {raster.describe(crs)})")
+
+    # ---- source integrity ----
+    after = workspace.manifest(source_folder, args.integrity)
+    report = workspace.compare(before, after, args.integrity)
+    log.info(f"      integrity   {report.summary()}")
+    if not report.ok:
+        log.warning("      the delivered data was modified -- this must not happen")
+
+    log.info("")
+    log.info(f"done in {time.monotonic() - started:.1f} s. Log: {log_path}")
+    if not args.use_existing_results and not args.keep_workspace:
+        log.info(f"The working copy in {working_folder} can be deleted.")
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    try:
+        return run(argv)
+    except Q50Error as error:
+        log = logging_setup.get()
+        emit = log.error if log.handlers else (lambda message: print(message, file=sys.stderr))
+        emit("")
+        emit(f"ERROR: {error.message}")
+        if error.hint:
+            emit(f"       {error.hint}")
+        return error.exit_code
+    except KeyboardInterrupt:
+        print("\ninterrupted", file=sys.stderr)
+        return 130
+    except Exception:  # unexpected: this is a bug, show everything
+        log = logging_setup.get()
+        if log.handlers:
+            log.exception("Unhandled error -- this is a bug in q50depth.")
+        else:
+            raise
+        return 70

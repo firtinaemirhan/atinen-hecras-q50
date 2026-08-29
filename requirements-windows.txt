@@ -1,0 +1,7 @@
+# Windows delivery environment: the core plus the library that drives HEC-RAS.
+-r requirements.txt
+
+# ras-commander exposes both back ends this project uses:
+#   RasCmdr.compute_plan   -> HEC-RAS command line runner
+#   RasControl.run_plan    -> RAS66.HECRASController COM automation
+ras-commander>=0.99

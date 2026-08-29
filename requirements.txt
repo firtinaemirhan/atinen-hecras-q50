@@ -1,0 +1,5 @@
+# Core pipeline. Works on Windows, macOS and Linux; no HEC-RAS needed to
+# rebuild the raster from results that already exist.
+h5py>=3.10
+numpy>=1.26
+rasterio>=1.3

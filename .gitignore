@@ -1,0 +1,26 @@
+# --- HEC-RAS input data (never committed: ~500 MB, client data) ---
+CASE_DATA/
+*.hdf
+*.tif
+*.vrt
+*.dss
+!docs/**/*.png
+
+# --- run artefacts ---
+OUTPUT/*
+!OUTPUT/.gitkeep
+workspace/
+*.log
+
+# --- python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# --- os ---
+.DS_Store
+Thumbs.db
