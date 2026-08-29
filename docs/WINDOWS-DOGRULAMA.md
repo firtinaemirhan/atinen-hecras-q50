@@ -11,20 +11,31 @@ Sırayla gidin; her adımın altında "beklenen" var, tutmuyorsa ne bakılacağ�
 
 - [ ] **HEC-RAS 6.6** kurulu. Varsayılan yol:
       `C:\Program Files (x86)\HEC\HEC-RAS\6.6\Ras.exe`
-- [ ] Python 3.10+ (3.12 önerilir)
+- [ ] Python **3.13** (python.org installer, "Add python.exe to PATH" işaretli).
+      3.12 kullanmayın: artık Windows installer'ı yayınlanmıyor.
 - [ ] Depo klonlandı, `CASE_DATA` makinede
+
+Git kuruluysa:
 
 ```bat
 git clone https://github.com/firtinaemirhan/atinen-hecras-q50.git
 cd atinen-hecras-q50
-py -3.12 -m venv .venv
-.venv\Scripts\activate
+```
+
+Git yoksa GitHub'da **Code → Download ZIP**, `C:\atinen` altına çıkarın; klasör
+adı `atinen-hecras-q50-main` olur.
+
+```bat
+python -m venv .venv
+.venv\Scripts\activate.bat
+python -m pip install --upgrade pip
 pip install -r requirements-windows.txt
 ```
 
-**Beklenen:** `ras-commander` ve bağımlılıkları kurulur.
-**Tutmazsa:** `pip install ras-commander` çıktısındaki hatayı okuyun; GDAL/rasterio
-tekerlekleri Windows'ta hazır gelir, derleme başlarsa Python sürümü çok yenidir.
+**Beklenen:** her paket hazır `.whl` olarak iner, hiçbir şey derlenmez.
+**Tutmazsa:** çıktıda `building wheel for ...` görüyorsanız Python sürümü uyumsuz
+demektir — 3.13'e geçin. Komut İstemi (cmd) kullanın; PowerShell `activate` betiğini
+engelleyebilir.
 
 ---
 
