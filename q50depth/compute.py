@@ -29,6 +29,76 @@ from .errors import ComputeError
 
 RUNNERS = ("cmdr", "controller")
 
+# HEC-RAS creates the plan HDF when a run starts and fills it in as it goes.
+# These are the groups a finished run leaves behind.
+_COMPLETE = ("Plan Data/Plan Information", "Results")
+
+
+def clear_stale_results(plan_hdf: Path) -> bool:
+    """Remove a previous run's results from the working copy.
+
+    A truncated HDF left behind by a failed run is worse than none: HEC-RAS
+    reads it when the plan is opened, and the application would otherwise have
+    to tell a fresh failure apart from an old one.
+    """
+    if plan_hdf.is_file():
+        plan_hdf.unlink()
+        return True
+    return False
+
+
+def _log_tail(prj_path: Path, plan_number: str, lines: int = 25) -> str:
+    """The tail of HEC-RAS's own computation log for this plan, if it wrote one."""
+    short = plan_number.lstrip("pP")
+    candidates = [
+        prj_path.with_suffix(f".bco{short}"),
+        prj_path.with_suffix(f".b{short}"),
+        prj_path.with_suffix(f".comp_msgs.txt"),
+    ]
+    for candidate in candidates:
+        if not candidate.is_file():
+            continue
+        try:
+            text = candidate.read_text(encoding="latin-1", errors="replace")
+        except OSError:
+            continue
+        tail = [line.rstrip() for line in text.splitlines() if line.strip()][-lines:]
+        if tail:
+            body = "\n".join(f"    {line}" for line in tail)
+            return f"\n  HEC-RAS wrote this in {candidate.name}:\n{body}"
+    return ""
+
+
+def verify_results(plan_hdf: Path, prj_path: Path, plan_number: str) -> None:
+    """Confirm the run actually produced results, and say why if it did not.
+
+    ras-commander reports success from the runner's exit status, which stays
+    zero even when HEC-RAS aborts during loading and leaves a stub file.
+    """
+    if not plan_hdf.is_file():
+        raise ComputeError(
+            f"HEC-RAS finished without writing {plan_hdf.name}.",
+            hint="The run never started." + _log_tail(prj_path, plan_number),
+        )
+    try:
+        import h5py  # noqa: PLC0415
+
+        with h5py.File(plan_hdf, "r") as handle:
+            missing = [key for key in _COMPLETE if key not in handle]
+    except OSError as exc:
+        raise ComputeError(
+            f"{plan_hdf.name} is not a readable HDF5 file after the run: {exc}",
+            hint=_log_tail(prj_path, plan_number).strip() or None,
+        ) from exc
+
+    if missing:
+        raise ComputeError(
+            f"HEC-RAS left {plan_hdf.name} unfinished (no {', '.join(missing)}).",
+            hint="The runner reported success, but the model did not compute. A "
+            "dialog during loading, or a file the plan needs that does not "
+            "resolve, is the usual cause." + _log_tail(prj_path, plan_number),
+        )
+
 
 @dataclass(frozen=True)
 class ComputeOutcome:

@@ -1,6 +1,6 @@
-2026-08-29 14:12:10,102  INFO     q50depth 1.0.0  on Darwin 24.6.0, python 3.12.13
-2026-08-29 14:12:10,102  INFO     started 2026-08-29T14:12:10+03:00
-2026-08-29 14:12:10,102  DEBUG    arguments: {'project': PosixPath('/private/var/folders/6_/85f5rh6905jdmwtlxrhrvz_m0000gn/T/pytest-of-emirhanfirtina/pytest-15/test_missing_project_exits_cle0/nothing'), 'ras_dir': None, 'output': PosixPath('OUTPUT/q50_depth.tif'), 'scenario': 'Q50', 'workspace': PosixPath('workspace'), 'overwrite_workspace': False, 'keep_workspace': False, 'use_existing_results': True, 'runner': 'cmdr', 'cores': None, 'resolution': None, 'min_depth': 0.0, 'integrity': 'fast', 'no_verify': False, 'log': None, 'verbose': False}
-2026-08-29 14:12:10,102  ERROR    
-2026-08-29 14:12:10,102  ERROR    ERROR: No HEC-RAS project file found under /private/var/folders/6_/85f5rh6905jdmwtlxrhrvz_m0000gn/T/pytest-of-emirhanfirtina/pytest-15/test_missing_project_exits_cle0/nothing
-2026-08-29 14:12:10,102  ERROR           A HEC-RAS .prj file contains 'Plan File=' lines. Coordinate system .prj files do not; those are ignored on purpose.
+2026-08-29 14:47:19,565  INFO     q50depth 1.0.0  on Darwin 24.6.0, python 3.12.13
+2026-08-29 14:47:19,565  INFO     started 2026-08-29T14:47:19+03:00
+2026-08-29 14:47:19,565  DEBUG    arguments: {'project': PosixPath('/private/var/folders/6_/85f5rh6905jdmwtlxrhrvz_m0000gn/T/pytest-of-emirhanfirtina/pytest-19/test_missing_project_exits_cle0/nothing'), 'ras_dir': None, 'output': PosixPath('OUTPUT/q50_depth.tif'), 'scenario': 'Q50', 'workspace': PosixPath('workspace'), 'overwrite_workspace': False, 'keep_workspace': False, 'use_existing_results': True, 'trim_project': 'auto', 'prepare_only': False, 'runner': 'cmdr', 'cores': None, 'resolution': None, 'min_depth': 0.0, 'integrity': 'fast', 'no_verify': False, 'log': None, 'verbose': False}
+2026-08-29 14:47:19,565  ERROR    
+2026-08-29 14:47:19,565  ERROR    ERROR: No HEC-RAS project file found under /private/var/folders/6_/85f5rh6905jdmwtlxrhrvz_m0000gn/T/pytest-of-emirhanfirtina/pytest-19/test_missing_project_exits_cle0/nothing
+2026-08-29 14:47:19,565  ERROR           A HEC-RAS .prj file contains 'Plan File=' lines. Coordinate system .prj files do not; those are ignored on purpose.

@@ -44,7 +44,7 @@ Case study belgesinin her maddesi ve bu depodaki karşılığı.
 
 | Teslim kalemi | Dosya |
 | --- | --- |
-| Kaynak kod | `main.py`, `q50depth/` (11 modül), `tools/preview.py` |
+| Kaynak kod | `main.py`, `q50depth/` (12 modül), `tools/preview.py`, `tools/audit_project.py` |
 | Çıktı | [`OUTPUT/q50_depth.tif`](OUTPUT/q50_depth.tif) — bkz. aşağıdaki not |
 | Bağımlılıklar | `requirements.txt`, `requirements-windows.txt`, `requirements-dev.txt` |
 | README | bu dosya |
@@ -140,6 +140,8 @@ python main.py --project PATH [--ras-dir PATH] [seçenekler]
 | `--scenario Qnnn` | Aranacak tekerrür etiketi. Varsayılan `Q50`. |
 | `--workspace PATH` | Projenin kopyalanacağı çalışma dizini. Varsayılan `workspace/`. |
 | `--use-existing-results` | HEC-RAS'ı çalıştırmaz, projede hazır duran sonuçları okur. Geliştirme ve yeniden üretim içindir. |
+| `--trim-project {auto,always,never}` | Çalışma kopyasındaki proje dosyasını seçilen plana indirger. `auto` (varsayılan) bunu yalnızca projedeki *başka* bir plan bozuksa yapar. |
+| `--prepare-only` | Çalışma kopyasını hazırlayıp durur (kopyala, yolları onar, projeyi indirge). HEC-RAS arayüzünde elle incelemek için. |
 | `--runner {cmdr,controller}` | HEC-RAS'ın sürülme yolu. Varsayılan `cmdr`. |
 | `--cores N` | HEC-RAS'ın kullanacağı çekirdek sayısı. |
 | `--resolution METRE` | Çıktı piksel boyutu. Varsayılan: arazinin kendi çözünürlüğü (bu veri setinde 0.1 m). |
@@ -195,6 +197,7 @@ Modüller:
 | `q50depth/verify.py` | Çıktı ile senaryo arasındaki bağın kontrolü |
 | `q50depth/cli.py` | Argümanlar, akış, günlük |
 | `q50depth/errors.py` | Hata sınıfları ve çıkış kodları |
+| `q50depth/references.py` | Planın dışarıdan okuduğu dosyalar ve onarımı |
 | `q50depth/logging_setup.py` | Konsol ve dosya günlüğü |
 
 ## Q50 senaryosunu nasıl belirledim
@@ -257,45 +260,65 @@ dışı komut satırı anahtarı uydurulmamıştır. İki yol vardır:
 `--ras-dir` hem kurulum klasörünü hem doğrudan `Ras.exe` yolunu kabul eder,
 böylece standart dışı kurulumlar da çalışır. Yol koda gömülü değildir.
 
-### Veri setindeki bozuk yol
+### Teslim edilen proje olduğu gibi çalışmıyor
 
-Q50 planı çalıştırılabilir değil, çünkü giriş debisi projenin içinde değil.
-`A_A_B_INPINAR.u05` şunu diyor:
+Bu, case study'nin en çok vakit alan kısmıydı ve belgenin "adayın proje
+yapısını incelemesi ve gerekli dosya ilişkilerini kendisinin belirlemesi
+beklenmektedir" cümlesinin karşılığı. Tam denetim:
+[`docs/VERI-DENETIMI.md`](docs/VERI-DENETIMI.md) — `tools/audit_project.py`
+üretiyor.
+
+**Yedi planın beşi yüklenemiyor.**
+
+| Plan | Sorun |
+| --- | --- |
+| p03 | `Flow File=u01` diyor; dosya diskte var ama `.prj` onu akış dosyaları arasında saymıyor |
+| p04 | Giriş debisi `..\..\akarcay_debi.dss` — proje klasörünün iki üstü, teslim paketinin dışı |
+| p05 | Giriş debisi `.\_CBS\akarcay_debiler\akarcay_debi.dss` — klasörün diskteki adı `2_CBS` |
+| p06 | Aynı `_CBS` sorunu |
+| p07 | Aynı `_CBS` sorunu |
+
+Dört akış dosyasının hiçbirinde hidrograf gömülü değil (`Flow Hydrograph= 0`),
+yani DSS bulunmadan bu senaryolar hesaplanamaz.
+
+**Neden hepsi bizi ilgilendiriyor:** HEC-RAS bir projeyi açarken *bildirilen
+bütün planları* yükler. Beş plan yüklenemeyince tek bir "Error in Loading Plan
+Data" kutusu bütün açılışı düşürüyor — p05 kendi başına tutarlı olduğu halde.
+Komut satırından çalıştırıldığında daha da sinsi: çalıştırıcı yine "başarılı"
+raporluyor ve geriye **yarım bir `p05.hdf`** kalıyor.
+
+**Uygulama çalışma kopyasında sırayla şunları yapıyor** (hepsi loga yazılıyor):
 
 ```
-Flow Hydrograph= 0
-DSS File=.\_CBS\akarcay_debiler\akarcay_debi.dss
-DSS Path=/AKA_AFY_BAY_INPINAR_1/AKC_126_YM/DEBI/02May2025/5Minute/Q50/
-Use DSS=True
-```
-
-Yani sınır koşulu hidrografı bir DSS dosyasından okunuyor — ama o yol
-çözülmüyor: klasörün diskteki adı **`2_CBS`**, `_CBS` değil. Dosyanın kendisi
-yerinde (`2_CBS/akarcay_debiler/akarcay_debi.dss`, 8.4 MB), sadece modelin
-baktığı yerde değil. Aynı şekilde planın çıktı DSS'i `.\Q50\Q50.dss` için
-`Q50` klasörü hiç yok.
-
-Sonuç: HEC-RAS "Error in Loading Plan Data" diyaloğunu açıyor, hesap
-başlamadan duruyor ve **yarım bir `p05.hdf` yazıyor.** Sessizce, çünkü
-komut satırı çalıştırıcısı yine de "başarılı" raporluyor.
-
-Uygulama bunu hesaptan önce tespit ediyor (`q50depth/references.py`): planın
-ve akış dosyasının bildirdiği her DSS yolu çözülüyor, çözülmeyenler için proje
-ağacında aynı adlı dosya aranıyor. **Tam bir tane** bulunursa çalışma
-kopyasında modelin beklediği yola kopyalanıyor ve yapılan iş loga yazılıyor:
-
-```
-[4/6] references  repairing 2 broken path(s) in the working copy
-      .\_CBS\akarcay_debiler\akarcay_debi.dss -> copied into place from 2_CBS/akarcay_debiler/akarcay_debi.dss
+[4/6] prepare     repairing 2 unresolved path(s)
+      .\_CBS\akarcay_debiler\akarcay_debi.dss -> copied into place from 2_CBS\akarcay_debiler\akarcay_debi.dss
       .\Q50\Q50.dss -> created output folder
+      4 unrelated plan(s) in this project cannot be loaded by HEC-RAS;
+      reducing the working copy to the selected plan
+      A_A_B_INPINAR.prj now declares only p05, g03, u05 (16 declarations removed)
+      removed the previous results file from the working copy
 ```
 
-Hiç bulunamazsa veya birden fazla aday çıkarsa tahmin yürütmüyor, anlamlı
-hatayla duruyor — yanlış hidrografla hesaplanmış bir taşkın haritası,
-hesaplanmamış olmasından kötüdür.
+1. **Çözülmeyen giriş dosyasını yerine koyar.** Proje ağacında aynı adlı dosya
+   aranır; **tam bir tane** bulunursa modelin beklediği yola kopyalanır. Hiç ya
+   da birden fazla aday varsa tahmin yürütmez, anlamlı hatayla durur — yanlış
+   hidrografla hesaplanmış bir taşkın haritası, hesaplanmamış olmasından kötüdür.
+2. **Çıktı DSS klasörünü oluşturur.** HEC-RAS dosyayı kendi yazar ama klasörü
+   yaratmaz.
+3. **Proje dosyasını seçilen plana indirger.** Yalnız `p05`, `g03`, `u05`
+   bildirilir; diğer planlar, açılamayan senaryo klasörlerine bakan DSS
+   girdileri ve `DSS File=dss` gibi bozuk satırlar çıkarılır. Geri kalan her
+   ayar olduğu gibi kalır. Bu adım varsayılan olarak **yalnızca başka bir plan
+   bozuksa** yapılır (`--trim-project auto`); sağlıklı bir projeye dokunulmaz.
+4. **Önceki koşumdan kalan sonuç dosyasını siler**, yarım bir HDF yeni koşuyu
+   kirletmesin diye.
 
-Bu onarım **yalnızca çalışma kopyasında** yapılır; `CASE_DATA` her koşulda
-olduğu gibi kalır ve bu, çalışma sonundaki bütünlük kontrolüyle kanıtlanır.
+Hesap bittikten sonra sonuç dosyası ayrıca **doğrulanır**: `Plan Data` ve
+`Results` grupları yoksa uygulama durur ve HEC-RAS'ın kendi hesap günlüğünün
+(`*.bco05`) son satırlarını hata mesajına ekler. Çalıştırıcının "başarılı"
+demesi tek başına yeterli sayılmaz.
+
+Bu onarımların hiçbiri `CASE_DATA`'ya dokunmaz.
 
 **Orijinal veri korunur.** HEC-RAS bir planı çalıştırdığında proje klasörüne
 yazar (`.bco`, `.O0X`, `.r0X`, plan HDF'i güncellenir). Bu yüzden uygulama
@@ -437,9 +460,10 @@ En önemli iki test, düzeltilen iki hatayı sabitler:
 - **Su yüzeyi hücre içinde sabit kabul edilir.** Modelin çözdüğü büyüklük
   budur. Sonuç, taşkın kenarında pürüzsüz değil tırtıklı bir sınır verir;
   RASMapper'ın eğimli su yüzeyi çizimine göre daha parçalı görünür.
-- **Veri setinde bozuk göreli yol var.** Model `.\_CBS\...` diyor, klasörün
-  adı `2_CBS`. Uygulama çalışma kopyasında onarıyor ve ne yaptığını yazıyor,
-  ama bu bir veri kusuru — düzeltilmesi gereken yer aslında proje dosyası.
+- **Teslim edilen proje beş noktada tutarsız** ve olduğu gibi açılamıyor.
+  Uygulama çalışma kopyasında onarıyor ve ne yaptığını yazıyor, ama asıl
+  düzeltilmesi gereken yer proje dosyasının kendisi.
+  Denetim: [`docs/VERI-DENETIMI.md`](docs/VERI-DENETIMI.md).
 - **Sadece 2D akış alanları işlenir.** 1D kesit sonuçlarından derinlik
   ızgarası üretilmez; böyle bir planla çalıştırılırsa anlaşılır hata verir
   (p01, p02 bu durumda).

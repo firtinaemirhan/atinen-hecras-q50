@@ -154,6 +154,147 @@ def load_project(prj_path: Path) -> Project:
     )
 
 
+_FILE_KEYS = ("Geom File", "Flow File", "Unsteady File", "Plan File")
+_DSS_FILE = re.compile(r"^DSS File=(.+?)\s*$", re.MULTILINE)
+
+
+@dataclass(frozen=True)
+class Defect:
+    """A reason HEC-RAS would fail to assemble one plan."""
+
+    plan: str
+    problem: str
+
+    def line(self) -> str:
+        return f"{self.plan}: {self.problem}"
+
+
+def plan_defects(project: Project) -> list[Defect]:
+    """Every declared plan HEC-RAS cannot put together.
+
+    This matters even for plans nobody asked for: opening a project loads all
+    of them, and one failure aborts the load for the whole project.
+    """
+    folder = project.folder
+    stem = project.prj_path.stem
+    text = _read_text(project.prj_path)
+    declared = {
+        key: set(re.findall(rf"^{key}=(\S+)\s*$", text, re.MULTILINE))
+        for key in ("Geom File", "Flow File", "Unsteady File")
+    }
+
+    defects: list[Defect] = []
+    for plan in project.plans:
+        if not (folder / f"{stem}.{plan.geometry_file}").is_file():
+            defects.append(Defect(plan.number, f"geometry {plan.geometry_file} is not on disk"))
+        elif plan.geometry_file not in declared["Geom File"]:
+            defects.append(
+                Defect(plan.number, f"geometry {plan.geometry_file} is not declared by the project")
+            )
+
+        key = "Unsteady File" if plan.flow_file.startswith("u") else "Flow File"
+        if not (folder / f"{stem}.{plan.flow_file}").is_file():
+            defects.append(Defect(plan.number, f"flow file {plan.flow_file} is not on disk"))
+        elif plan.flow_file not in declared[key]:
+            defects.append(
+                Defect(plan.number, f"flow file {plan.flow_file} is not declared by the project")
+            )
+        elif plan.flow_file.startswith("u"):
+            flow_text = _read_text(folder / f"{stem}.{plan.flow_file}")
+            for raw in _DSS_FILE.findall(flow_text):
+                target = folder / raw.replace("\\", "/").lstrip("./")
+                if not target.exists():
+                    defects.append(
+                        Defect(plan.number, f"boundary condition reads {raw}, which does not resolve")
+                    )
+    return defects
+
+
+def _newline(raw: bytes) -> str:
+    """HEC-RAS writes CRLF; keep whatever the file already uses."""
+    return "\r\n" if b"\r\n" in raw else "\n"
+
+
+def write_reduced(prj_path: Path, plan: Plan, keep_dss: bool = True) -> list[str]:
+    """Rewrite a project file so it declares only ``plan`` and its inputs.
+
+    HEC-RAS loads *every* plan a project declares when the project is opened.
+    One plan it cannot assemble is enough to abort the load for all of them --
+    which is what happens with the delivered data set: four of the seven plans
+    point at boundary condition files that do not resolve, and a fifth uses an
+    unsteady flow file the project never declares.  Opening the project then
+    fails with "Error in Loading Plan Data" and the plan we want never runs,
+    even though it is itself consistent.
+
+    Since the application computes exactly one plan, its working copy gets a
+    project that declares exactly that plan, its geometry and its flow file.
+    The delivered project is not modified; only the copy is.
+
+    Returns the lines that were removed, for the run log.
+    """
+    raw = prj_path.read_bytes()
+    newline = _newline(raw)
+    lines = raw.decode(_ENCODING).splitlines()
+
+    wanted = {
+        "Geom File": plan.geometry_file,
+        "Plan File": plan.number,
+        ("Unsteady File" if plan.flow_file.startswith("u") else "Flow File"): plan.flow_file,
+    }
+
+    folder = prj_path.parent
+    kept: list[str] = []
+    dropped: list[str] = []
+    seen: set[str] = set()
+
+    for line in lines:
+        key, _, value = line.partition("=")
+        key, value = key.strip(), value.strip()
+
+        if key in _FILE_KEYS:
+            if wanted.get(key) == value:
+                seen.add(key)
+                kept.append(line)
+            else:
+                dropped.append(line)
+            continue
+
+        if key == "Current Plan":
+            kept.append(f"Current Plan={plan.number}")
+            continue
+
+        if key == "DSS File" and not keep_dss:
+            dropped.append(line)
+            continue
+
+        if key == "DSS File":
+            # Keep entries that can actually be opened or created; the project
+            # also lists scenario folders that were removed from the delivery,
+            # plus one malformed entry that is not a path at all.
+            target = folder / value.replace("\\", "/").lstrip("./")
+            if ("/" in value or "\\" in value) and target.parent.is_dir():
+                kept.append(line)
+            else:
+                dropped.append(line)
+            continue
+
+        kept.append(line)
+
+    # A plan may name a file the project never declared (p03 -> u01 here); if
+    # that is the selected plan, the declaration has to be added.
+    missing = [(k, v) for k, v in wanted.items() if k not in seen and v]
+    if missing:
+        anchor = next(
+            (i for i, line in enumerate(kept) if line.startswith("Geom File=")),
+            len(kept),
+        )
+        for offset, (key, value) in enumerate(missing):
+            kept.insert(anchor + offset, f"{key}={value}")
+
+    prj_path.write_bytes((newline.join(kept) + newline).encode(_ENCODING))
+    return dropped
+
+
 def scenario_pattern(scenario: str) -> re.Pattern[str]:
     """Build a boundary-checked pattern for a return-period label.
 

@@ -99,6 +99,22 @@ def build_parser() -> argparse.ArgumentParser:
         "computes the plan.",
     )
     parser.add_argument(
+        "--trim-project",
+        choices=("auto", "always", "never"),
+        default="auto",
+        help="Reduce the working copy's project file to the selected plan and "
+        "its inputs. 'auto' (default) does this only when another plan in the "
+        "project is broken, because HEC-RAS aborts the whole project load in "
+        "that case. Never touches the delivered project.",
+    )
+    parser.add_argument(
+        "--prepare-only",
+        action="store_true",
+        help="Build the working copy (copy, repair paths, reduce the project) "
+        "and stop, without reading results or writing a raster. Useful for "
+        "opening the prepared project in the HEC-RAS GUI.",
+    )
+    parser.add_argument(
         "--runner",
         choices=compute.RUNNERS,
         default="cmdr",
@@ -172,7 +188,7 @@ def run(argv: list[str] | None = None) -> int:
 
     if args.use_existing_results and args.ras_dir is not None:
         log.warning("note: --ras-dir is ignored because --use-existing-results was given")
-    if not args.use_existing_results and args.ras_dir is None:
+    if not (args.use_existing_results or args.prepare_only) and args.ras_dir is None:
         raise UsageError(
             "--ras-dir is required to run HEC-RAS.",
             hint="Give the HEC-RAS installation folder, or pass "
@@ -209,26 +225,62 @@ def run(argv: list[str] | None = None) -> int:
         working_folder = workspace.prepare(source_folder, target, args.overwrite_workspace)
         working_prj = working_folder / source_prj.name
 
-    # ---- 3. the files the plan reads from outside itself ----
+    # ---- 3. make the working copy something HEC-RAS can actually load ----
     working_plan = working_folder / selected.path.name
     plan_references = references.collect(working_folder, working_plan, selected.flow_file)
-    missing = [r for r in plan_references if not r.exists]
-    for reference in missing:
+    unresolved = [r for r in plan_references if not r.exists]
+    for reference in unresolved:
         log.warning(
-            f"      note: {selected.number} references {reference.raw} "
-            f"({reference.kind}), which does not resolve in the project"
+            f"      note: {selected.number} reads {reference.raw} ({reference.kind}), "
+            "which does not resolve in the project as delivered"
         )
+    defects = project.plan_defects(source_project)
+    for defect in defects:
+        log.warning(f"      note: {defect.line()}")
 
-    # ---- 4. compute ----
     if args.use_existing_results:
         log.info("[4/6] hec-ras     not run; using the results already in the project")
-        if missing:
-            log.info("      the missing references above matter only for a real run")
+        if unresolved or defects:
+            log.info("      the notes above only matter for a real HEC-RAS run")
     else:
-        if missing:
-            log.info(f"[4/6] references  repairing {len(missing)} broken path(s) in the working copy")
+        if unresolved:
+            log.info(f"[4/6] prepare     repairing {len(unresolved)} unresolved path(s)")
             for repair in references.repair(working_folder, plan_references):
                 log.info(f"      {repair.line()}")
+
+        # HEC-RAS loads every plan a project declares, so one plan it cannot
+        # assemble aborts the load for all of them -- including ours.
+        others = [d for d in defects if d.plan != selected.number]
+        trim = args.trim_project == "always" or (
+            args.trim_project == "auto" and bool(others)
+        )
+        if trim:
+            if others:
+                log.info(
+                    f"      {len(others)} unrelated plan(s) in this project cannot be "
+                    "loaded by HEC-RAS; reducing the working copy to the selected plan"
+                )
+            dropped = project.write_reduced(working_prj, selected)
+            log.info(
+                f"      {working_prj.name} now declares only {selected.number}, "
+                f"{selected.geometry_file}, {selected.flow_file} "
+                f"({len(dropped)} declarations removed)"
+            )
+            for line in dropped:
+                log.debug(f"        removed: {line}")
+
+        if not args.prepare_only and compute.clear_stale_results(
+            results.results_path_for(working_plan)
+        ):
+            log.info("      removed the previous results file from the working copy")
+
+    if args.prepare_only:
+        log.info("")
+        log.info(f"--prepare-only: the working copy is ready at {working_folder}")
+        log.info(f"Open {working_prj.name} in HEC-RAS to inspect the plan by hand.")
+        return 0
+
+    if not args.use_existing_results:
         log.info(f"[4/6] hec-ras     computing {selected.number} via {args.runner}")
         outcome = compute.run_plan(
             project_folder=working_folder,
@@ -239,6 +291,9 @@ def run(argv: list[str] | None = None) -> int:
             cores=args.cores,
         )
         log.info(f"      {outcome.detail}, {outcome.seconds:.1f} s")
+        compute.verify_results(
+            results.results_path_for(working_plan), working_prj, selected.number
+        )
 
     # ---- 5. read results, terrain, and build the depth grid ----
     hdf_path = results.results_path_for(working_plan)

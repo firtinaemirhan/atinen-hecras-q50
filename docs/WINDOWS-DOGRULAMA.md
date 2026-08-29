@@ -1,36 +1,33 @@
 # Windows Sağlama Listesi
 
-Boru hattının tamamı macOS'ta gerçek `p05.hdf` üzerinde çalıştırıldı. Sınanamayan
-tek adım **HEC-RAS'ın Python'dan çalıştırılması**. Bu liste onu kapatmak içindir.
+Boru hattının okuma-hesap-yazma tarafı hem macOS'ta hem Windows 11'de gerçek
+`p05.hdf` üzerinde doğrulandı. Kapatılacak tek adım **HEC-RAS'ın Python'dan
+çalıştırılması**.
 
-Sırayla gidin; her adımın altında "beklenen" var, tutmuyorsa ne bakılacağı yazıyor.
+2026-08-29'da Windows 11 + HEC-RAS 6.6 ile yapılan ilk denemede HEC-RAS
+"Error in Loading Plan Data" verip yarım bir sonuç dosyası yazdı. Nedeni
+bulundu ve uygulamaya çözümü eklendi — ayrıntısı
+[`VERI-DENETIMI.md`](VERI-DENETIMI.md), özeti: teslim edilen projedeki yedi
+planın beşi yüklenemiyor ve tek bozuk plan bütün proje açılışını düşürüyor.
+Bu liste o düzeltmeyle birlikte baştan yürütülür.
 
 ---
 
 ## 0. Ortam
 
-- [ ] **HEC-RAS 6.6** kurulu. Varsayılan yol:
-      `C:\Program Files (x86)\HEC\HEC-RAS\6.6\Ras.exe`
-- [ ] Python **3.13 veya 3.14** (python.org installer, "Add python.exe to PATH"
-      işaretli). Her iki sürümde de 41 paketin tamamı hazır tekerlek olarak iner.
-      3.12 kullanmayın: artık Windows installer'ı yayınlanmıyor.
-- [ ] Depo klonlandı (ya da ZIP olarak indirildi)
+- [ ] **HEC-RAS 6.6** kurulu. Doğrula:
+      `dir /s /b "C:\Program Files (x86)\HEC\Ras.exe"`
+- [ ] **Python 3.13 veya 3.14** (python.org installer, "Add python.exe to PATH"
+      işaretli). 3.12 kullanmayın: artık Windows installer'ı yayınlanmıyor.
+      41 paketin tamamı bu iki sürümde hazır tekerlek olarak iner.
 - [ ] `CASE_DATA` makinede ve şu dosya duruyor:
       `<CASE_DATA>\AKA_AFY_BAY_INPINAR_1\1_Modeller\A_A_B_INPINAR.prj`
-      (ZIP bazen fazladan bir klasör katmanı ekler; `--project` alt klasörleri
-      kendisi tarar, yanlış katman verilse de `.prj` bulunur)
 
-Git kuruluysa:
-
-```bat
-git clone https://github.com/firtinaemirhan/atinen-hecras-q50.git
-cd atinen-hecras-q50
-```
-
-Git yoksa GitHub'da **Code → Download ZIP**, `C:\atinen` altına çıkarın; klasör
-adı `atinen-hecras-q50-main` olur.
+Depoyu alın (git yoksa GitHub'da **Code → Download ZIP**, klasör adı
+`atinen-hecras-q50-main` olur):
 
 ```bat
+cd C:\atinen\atinen-hecras-q50-main
 python -m venv .venv
 .venv\Scripts\activate.bat
 python -m pip install --upgrade pip
@@ -38,51 +35,43 @@ pip install -r requirements-windows.txt
 pip install -r requirements-dev.txt
 ```
 
-İkinci satır testleri ve `tools/preview.py`'yi çalıştırmak için gerekli
-(`pytest`, `matplotlib`); uygulamanın kendisi bunlara ihtiyaç duymaz.
-
 ⚠️ `-r` işaretini atlamayın. `pip install .` veya `pip install C:\atinen\...`
-demeyin — proje `python main.py` ile çalışır, paket olarak kurulması gerekmez.
-(Yine de isterseniz `pip install -e ".[windows]"` çalışır.)
+demeyin — proje `python main.py` ile çalışır.
+İkinci satır testler ve `tools/preview.py` içindir.
 
-**Beklenen:** her paket hazır `.whl` olarak iner, hiçbir şey derlenmez.
-**Tutmazsa:** çıktıda `Building wheel for ...` görüyorsanız Python sürümü uyumsuz
-demektir — 3.13 veya 3.14'e geçin. Komut İstemi (cmd) kullanın; PowerShell `activate`
-betiğini engelleyebilir.
+**Beklenen:** her paket hazır `.whl` olarak iner. Çıktıda `Building wheel for ...`
+görürseniz Python sürümü uyumsuzdur. Komut İstemi (cmd) kullanın; PowerShell
+`activate` betiğini engelleyebilir.
 
-> **Not.** Bağımlılık ağacı, 2014'ten kalma `pathlib` 1.0.1 paketini de getiriyor
+> Bağımlılık ağacı, 2014'ten kalma `pathlib` 1.0.1 paketini de getiriyor
 > (ras-commander üzerinden). Standart kütüphane `sys.path`'te önce geldiği için
-> gölgeleme olmuyor; kod ras-commander kurulu bir ortamda sınandı, 44 test geçti.
+> gölgeleme olmuyor; kod ras-commander kurulu bir ortamda sınandı.
 
 ---
 
-## 1. Kurulum ayakta mı (HEC-RAS'sız)
+## 1. Testler (HEC-RAS'a dokunmadan)
 
 ```bat
+set Q50_CASE_DATA=C:\atinen\CASE_DATA
 python -m pytest tests -q
 ```
 
-`No module named pytest` derse 0. adımdaki `requirements-dev.txt` satırı atlanmıştır.
-
-**Beklenen:** 44 test geçer. `CASE_DATA` yoksa gerçek veri testleri atlanır.
-`CASE_DATA` başka yerdeyse:
-
-```bat
-set Q50_CASE_DATA=D:\CASE_DATA
-python -m pytest tests -q
-```
+**Beklenen:** `60 passed`. `CASE_DATA` yoksa gerçek veri testleri atlanır.
+`No module named pytest` derse 0. adımdaki `requirements-dev.txt` satırı
+atlanmıştır.
 
 ---
 
-## 2. Hesapsız uçtan uca (referans sayılar)
+## 2. Referans sayılar (HEC-RAS'sız)
 
-HEC-RAS'ı çalıştırmadan, projede hazır duran sonuçlardan haritayı üretir.
+Projede hazır duran sonuçlardan haritayı üretir; okuma-hesap-yazma zincirini
+uçtan uca sınar.
 
 ```bat
-python main.py --project D:\CASE_DATA --use-existing-results --output OUTPUT\q50_ref.tif
+python main.py --project C:\atinen\CASE_DATA --use-existing-results --output OUTPUT\q50_ref.tif
 ```
 
-**Beklenen (macOS'ta ölçülen değerler):**
+**Beklenen** (macOS ve Windows 11'de birebir aynı çıktı):
 
 | | |
 | --- | --- |
@@ -93,8 +82,11 @@ python main.py --project D:\CASE_DATA --use-existing-results --output OUTPUT\q50
 | Maksimum derinlik | 1.625 m |
 | Ortalama derinlik | 0.130 m |
 | Doğrulama | 8 kontrolün 8'i `ok` |
+| Bütünlük | `source unchanged (176 files, fast check)` |
 
-Bu sayılar tutuyorsa okuma/hesap/yazma tarafı Windows'ta da aynı çalışıyor demektir.
+Bu adımda ayrıca teslim edilen projenin kusurları not olarak listelenir
+(`note: p03: flow file u01 is not declared...`). Bu beklenen davranış; hazır
+sonuç okunurken onarım yapılmaz.
 
 ---
 
@@ -102,113 +94,118 @@ Bu sayılar tutuyorsa okuma/hesap/yazma tarafı Windows'ta da aynı çalışıyo
 
 ```bat
 python main.py ^
-  --project D:\CASE_DATA ^
+  --project C:\atinen\CASE_DATA ^
   --ras-dir "C:\Program Files (x86)\HEC\HEC-RAS\6.6" ^
   --output OUTPUT\q50_depth.tif
 ```
 
-**Beklenen:**
-- `[3/6] workspace   copying project to workspace\A_A_B_INPINAR_Q50` (bir-iki dakika, ~290 MB)
-- `[4/6] references  repairing 2 broken path(s) in the working copy` — veri
-  setindeki `.\_CBS\...` / `.\Q50\...` yolları çözülmüyor, çalışma kopyasında
-  onarılır (bkz. README, "Veri setindeki bozuk yol")
-- `[4/6] hec-ras     computing p05 via cmdr` ardından `success=True`
-- `[5/6]` bölümündeki sayılar 2. adımdakilerle **aynı** çıkmalı
-- `integrity   source unchanged (... files, fast check)`
+Projeyi kopyalar (~290 MB, bir-iki dakika), çalışma kopyasını onarır, sonra
+hesaplar. **Beklenen akış:**
 
-> **`Error in Loading Plan Data` görürseniz** ve onarım satırları çıkmadıysa,
-> elinizdeki sürüm eskidir — depoyu güncelleyin. Bu diyalog giriş DSS'inin
-> bulunamadığı anlamına gelir; ras-commander onu otomatik kapatır ve HEC-RAS
-> yarım bir `p05.hdf` yazar. Uygulama yarım dosyayı fark edip durur.
+```
+[3/6] workspace   copying project to workspace\A_A_B_INPINAR_Q50
+      note: p05 reads .\_CBS\...\akarcay_debi.dss (inflow), which does not resolve ...
+      note: p03: flow file u01 is not declared by the project
+      note: p04: boundary condition reads ..\..\akarcay_debi.dss, which does not resolve
+      ...
+[4/6] prepare     repairing 2 unresolved path(s)
+      .\_CBS\akarcay_debiler\akarcay_debi.dss -> copied into place from 2_CBS\...
+      .\Q50\Q50.dss -> created output folder
+      4 unrelated plan(s) in this project cannot be loaded by HEC-RAS;
+      reducing the working copy to the selected plan
+      A_A_B_INPINAR.prj now declares only p05, g03, u05 (16 declarations removed)
+[4/6] hec-ras     computing p05 via cmdr
+      RasCmdr.compute_plan -> success=True, NN.N s
+[5/6] ...  -> 413858 piksel, max 1.625 m   (2. adımla aynı olmalı)
+```
 
-**`cmdr` başarısız olursa** COM otomasyonunu deneyin — aynı komuta
-`--runner controller` ekleyin. Bu, HEC-RAS GUI'sinin kullandığı
-`RAS66.HECRASController` nesnesini sürer.
+HEC-RAS penceresi açılıp kapanabilir, normal.
 
-**İkisi de başarısız olursa** bakılacak yerler, sırayla:
-1. `workspace\A_A_B_INPINAR_Q50\A_A_B_INPINAR.bco05` — HEC-RAS'ın kendi hesap günlüğü
-2. `OUTPUT\run.log` — tam yığın izi burada
-3. HEC-RAS'ı elle açıp aynı projeyi/planı çalıştırın: elle de çalışmıyorsa sorun
-   kodda değil, modelde ya da kurulumdadır
+### Düşerse
+
+Uygulama artık çalıştırıcının "başarılı" demesine güvenmiyor: sonuç dosyasında
+`Plan Data` ve `Results` yoksa durur ve **HEC-RAS'ın kendi hesap günlüğünün son
+satırlarını hata mesajına ekler.** Yani ekrandaki çıktı çoğu zaman yeterli.
+
+Sırayla denenecekler:
+
+1. Aynı komuta `--runner controller` ekleyin — COM otomasyonu
+   (`RAS66.HECRASController`), GUI'nin kullandığı arayüz.
+2. Hazırlanmış kopyayı elle açıp bakın:
+   ```bat
+   python main.py --project C:\atinen\CASE_DATA --prepare-only
+   ```
+   sonra HEC-RAS'ta `workspace\A_A_B_INPINAR_Q50\A_A_B_INPINAR.prj` — bu proje
+   yalnız Q50'yi bildirir, diğer bozuk planlar çıkarılmıştır. Plan listesinde
+   tek bir Q50 görmelisiniz. `Run → Unsteady Flow Analysis → Compute`.
+3. Hâlâ düşüyorsa `OUTPUT\run.log` ile
+   `workspace\A_A_B_INPINAR_Q50\A_A_B_INPINAR.bco05` dosyalarını paylaşın.
 
 ---
 
-## 4. Hesaplanan çıktı doğru mu
+## 4. Çıktıyı gözle doğrula
 
 ```bat
-python -m pip install -r requirements-dev.txt
-python tools\preview.py OUTPUT\q50_depth.tif --terrain D:\CASE_DATA\AKA_AFY_BAY_INPINAR_1\1_Modeller\merge.Clone.vrt
-```
-
-- [ ] Sayılar 2. adımla aynı mı? (HEC-RAS yeniden hesapladığı için birebir aynı
-      olmalı; küçük farklar çekirdek sayısına bağlı olabilir, büyük fark
-      araştırılmalı)
-- [ ] Görüntü dere koridorunu takip ediyor mu?
-- [ ] **Sezer Bey'in toplantıda gösterdiği çıktıya benziyor mu?**
-
-```bat
+python tools\preview.py OUTPUT\q50_depth.tif --terrain C:\atinen\CASE_DATA\AKA_AFY_BAY_INPINAR_1\1_Modeller\merge.Clone.vrt
 gdalinfo OUTPUT\q50_depth.tif
 ```
 
-- [ ] `SCENARIO=Q50`, `PLAN_NUMBER=p05`, `HEC_RAS_EXECUTED=True` etiketleri var mı?
+- [ ] Sayılar 2. adımla aynı mı? (HEC-RAS yeniden hesapladığı için birebir
+      olmalı; küçük fark çekirdek sayısına bağlı olabilir, büyük fark araştırılmalı)
+- [ ] Görüntü dere koridorunu takip ediyor mu?
+- [ ] **Sezer Bey'in toplantıda gösterdiği çıktıya benziyor mu?**
+- [ ] Etiketlerde `SCENARIO=Q50`, `PLAN_NUMBER=p05`, **`HEC_RAS_EXECUTED=True`** var mı?
 
 ---
 
 ## 5. Orijinal veri gerçekten bozulmadı mı
 
 ```bat
-python main.py --project D:\CASE_DATA --ras-dir "..." --integrity full
+python main.py --project C:\atinen\CASE_DATA --ras-dir "C:\Program Files (x86)\HEC\HEC-RAS\6.6" --integrity full
 ```
 
-**Beklenen:** `integrity   source unchanged (176 files, full check)`
-Bu, her dosyanın SHA-256'sını çalışma öncesi ve sonrası karşılaştırır.
-
-Ek olarak Explorer'da `D:\CASE_DATA` içindeki dosya tarihlerinin değişmediğini
-gözle de doğrulayın.
+**Beklenen:** `integrity   source unchanged (176 files, full check)` — her
+dosyanın SHA-256'sı koşu öncesi ve sonrası karşılaştırılır.
 
 ---
 
-## 6. RASMapper ile karşılaştırma (opsiyonel ama değerli)
+## 6. RASMapper ile karşılaştırma (opsiyonel)
 
-Kendi haritamızın RASMapper'ın ürettiğine ne kadar yakın olduğunu görmek için:
+1. HEC-RAS → RASMapper, `workspace\A_A_B_INPINAR_Q50` projesini yükleyin
+2. Results → **Q50** → **Depth → Max** katmanını görüntüleyin
+3. Sağ tık → **Export Layer → GeoTIFF** → `q50_depth_RASMAPPER.tif`
+4. QGIS'te iki rasteri üst üste koyup farka bakın
 
-1. HEC-RAS → RASMapper'ı açın, `workspace\A_A_B_INPINAR_Q50` projesini yükleyin
-2. Results altında **Q50** planını, **Depth → Max** katmanını görüntüleyin
-3. Katmana sağ tık → **Export Layer → GeoTIFF** → `q50_depth_RASMAPPER.tif`
-4. İki rasteri QGIS'te üst üste koyup farkı bakın
-
-Fark beklenir ve normaldir: bizim harita su yüzeyini hücre içinde **sabit**
-kabul eder, RASMapper eğimli çizebilir. Önemli olan taşkın **yayılımının** ve
-derinlik **mertebesinin** örtüşmesi.
+Fark beklenir: bizim harita su yüzeyini hücre içinde sabit kabul eder,
+RASMapper eğimli çizebilir. Önemli olan taşkın yayılımının ve derinlik
+mertebesinin örtüşmesi.
 
 ---
 
 ## 7. Teslim dosyalarını yenile
 
-HEC-RAS gerçekten çalıştıktan sonra depodaki teslim kalemleri güncellenmeli:
+HEC-RAS gerçekten çalıştıktan sonra:
 
 ```bat
 copy OUTPUT\run.log docs\ornek-calisma-kaydi.txt
 python tools\preview.py OUTPUT\q50_depth.tif --terrain "...\merge.Clone.vrt" -o docs\q50_depth_preview.png
 git add -f OUTPUT\q50_depth.tif OUTPUT\run.log docs\
-git commit -m "HEC-RAS ile hesaplanan çıktı"
+git commit -m "HEC-RAS ile hesaplanan cikti"
 git push
 ```
 
-- [ ] `gdalinfo OUTPUT\q50_depth.tif` çıktısında **`HEC_RAS_EXECUTED=True`** görünüyor mu?
+Depoyu ZIP olarak indirdiyseniz git yoktur; `OUTPUT\q50_depth.tif`,
+`OUTPUT\run.log` ve `docs\q50_depth_preview.png` dosyalarını geri taşımanız
+yeterli.
+
 - [ ] README'nin "Bilinen sınırlamalar" bölümündeki "hesap adımı sınanmadı"
-      maddesi artık geçersiz — güncellenmeli.
+      maddesi artık geçersiz — güncelleyin.
 
 ---
 
 ## Sonuç
 
-Bittiğinde şunu bilmek istiyoruz:
-
 - [ ] HEC-RAS Python'dan çalıştı mı, hangi runner ile?
 - [ ] Hesaplanan çıktı 2. adımdaki referans sayılarla örtüştü mü?
 - [ ] Orijinal `CASE_DATA` bozulmadı mı?
 - [ ] Çıktı Sezer Bey'in gösterdiği görüntüye benziyor mu?
-
-Takılan bir yer olursa `OUTPUT\run.log` ile `*.bco05` dosyası sorunu bulmaya
-yeter.
