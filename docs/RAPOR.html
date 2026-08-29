@@ -1,0 +1,487 @@
+<meta charset="utf-8">
+<title>Q50 Maksimum Su Derinliği Otomasyonu — Teknik Rapor</title>
+<style>
+  :root{
+    --brand:#1863dc; --brand-deep:#0056a7; --accent:#5eead4;
+    --ink:#212121; --muted:#4e4b66; --line:#ebebeb; --surface:#f7f8fa; --white:#fff;
+    --ok:#0f7b4f; --warn:#b45309; --bad:#b91c1c;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--surface);color:var(--ink);
+       font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+       -webkit-font-smoothing:antialiased}
+  .page{max-width:900px;margin:0 auto;background:var(--white);
+        box-shadow:0 1px 3px rgba(0,0,0,.06),0 12px 40px rgba(0,0,0,.06)}
+  header{background:linear-gradient(135deg,var(--brand-deep),var(--brand));color:#fff;padding:56px 56px 44px}
+  header .eyebrow{font-size:12px;letter-spacing:.16em;text-transform:uppercase;opacity:.8;margin:0 0 14px}
+  header h1{margin:0 0 10px;font-size:34px;line-height:1.2;font-weight:650;letter-spacing:-.02em}
+  header .sub{margin:0;font-size:17px;opacity:.92;font-weight:400}
+  header .rule{height:3px;width:64px;background:var(--accent);margin:22px 0 24px;border-radius:2px}
+  .meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px 28px;font-size:13.5px}
+  .meta div span{display:block;opacity:.72;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px}
+  .meta div b{font-weight:600}
+  main{padding:12px 56px 56px}
+  h2{margin:44px 0 14px;font-size:21px;font-weight:650;letter-spacing:-.01em;
+     padding-bottom:9px;border-bottom:2px solid var(--line)}
+  h2 .n{color:var(--brand);font-variant-numeric:tabular-nums;margin-right:10px}
+  h3{margin:28px 0 8px;font-size:16.5px;font-weight:650;color:var(--brand-deep)}
+  p{margin:0 0 13px}
+  ul,ol{margin:0 0 13px;padding-left:22px} li{margin-bottom:6px}
+  code{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+       font-size:.875em;background:var(--surface);border:1px solid var(--line);
+       padding:1px 5px;border-radius:4px;white-space:nowrap}
+  pre{background:#1a1f2b;color:#e6edf3;padding:16px 18px;border-radius:8px;overflow-x:auto;
+      font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.55;margin:0 0 16px}
+  pre code{background:none;border:0;padding:0;color:inherit;white-space:pre}
+  pre .c{color:#7d8590} pre .g{color:#7ee787} pre .r{color:#ff7b72} pre .y{color:#e3b341} pre .b{color:#79c0ff}
+  table{width:100%;border-collapse:collapse;margin:0 0 18px;font-size:14.5px}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:var(--surface);font-weight:650;font-size:13px;letter-spacing:.02em}
+  tbody tr:last-child td{border-bottom:0}
+  .tw{overflow-x:auto}
+  .lead{font-size:17.5px;line-height:1.6;color:var(--muted)}
+  .callout{border-left:3px solid var(--brand);background:var(--surface);
+           padding:14px 18px;border-radius:0 8px 8px 0;margin:0 0 18px}
+  .callout.warn{border-left-color:var(--warn)}
+  .callout.ok{border-left-color:var(--ok)}
+  .callout p:last-child{margin-bottom:0}
+  .callout b{color:var(--ink)}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin:0 0 22px}
+  .kpi{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:var(--white)}
+  .kpi b{display:block;font-size:24px;font-weight:650;color:var(--brand-deep);
+         letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.2}
+  .kpi span{display:block;font-size:12.5px;color:var(--muted);margin-top:3px}
+  .ok-t{color:var(--ok);font-weight:650} .bad-t{color:var(--bad);font-weight:650} .warn-t{color:var(--warn);font-weight:650}
+  figure{margin:0 0 20px} figure img{width:100%;border:1px solid var(--line);border-radius:8px;display:block}
+  figcaption{font-size:13px;color:var(--muted);margin-top:8px}
+  footer{border-top:2px solid var(--line);margin-top:48px;padding:24px 56px 40px;
+         font-size:13px;color:var(--muted)}
+  .toc{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 22px;margin:28px 0 8px}
+  .toc h4{margin:0 0 10px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .toc ol{margin:0;padding-left:20px;columns:2;column-gap:32px;font-size:14px}
+  .toc a{color:var(--brand-deep);text-decoration:none} .toc a:hover{text-decoration:underline}
+  @media (max-width:720px){header,main{padding-left:24px;padding-right:24px}footer{padding-left:24px;padding-right:24px}.toc ol{columns:1}}
+  @media print{
+    body{background:#fff} .page{box-shadow:none;max-width:none}
+    header{padding:32px 0 24px;background:#fff;color:var(--ink);border-bottom:4px solid var(--brand)}
+    header .rule{background:var(--brand)} main{padding:0}
+    h2{break-after:avoid} pre,table,figure,.callout,.kpi{break-inside:avoid}
+    pre{background:#f4f6f8;color:#1a1f2b;border:1px solid var(--line)}
+    pre .c{color:#6b7280} pre .g{color:#0f7b4f} pre .r{color:#b91c1c} pre .y{color:#b45309} pre .b{color:#0056a7}
+    .toc{break-after:page} footer{padding:16px 0 0}
+  }
+</style>
+
+<div class="page">
+<header>
+  <p class="eyebrow">Case Study · Teknik Rapor</p>
+  <h1>HEC-RAS Q50 Maksimum Derinlik Otomasyonu</h1>
+  <p class="sub">Bir HEC-RAS projesinde Q50 senaryosunu otomatik belirleyen ve gerçek proje
+     sonuçlarından maksimum su derinliği haritası üreten Python uygulaması</p>
+  <div class="rule"></div>
+  <div class="meta">
+    <div><span>Hazırlayan</span><b>Emirhan Fırtına</b></div>
+    <div><span>Kurum</span><b>Atinen Mühendislik</b></div>
+    <div><span>Tarih</span><b>29 Ağustos 2026</b></div>
+    <div><span>Teknoloji</span><b>Python 3.13+ · HEC-RAS 6.6</b></div>
+    <div><span>Çıktı</span><b>OUTPUT/q50_depth.tif</b></div>
+  </div>
+</header>
+
+<main>
+
+<div class="toc">
+  <h4>İçindekiler</h4>
+  <ol>
+    <li><a href="#ozet">Yönetici özeti</a></li>
+    <li><a href="#kapsam">İsterlerin karşılığı</a></li>
+    <li><a href="#q50">Q50 senaryosunun belirlenmesi</a></li>
+    <li><a href="#hecras">HEC-RAS ile etkileşim</a></li>
+    <li><a href="#derinlik">Derinlik haritasının üretimi</a></li>
+    <li><a href="#dogrulama">Çıktının doğrulanması</a></li>
+    <li><a href="#denetim">Teslim edilen verinin denetimi</a></li>
+    <li><a href="#cokme">Motor çöküşü ve eleme çalışması</a></li>
+    <li><a href="#hata">Hata yönetimi</a></li>
+    <li><a href="#sonuc">Sonuçlar</a></li>
+    <li><a href="#sinir">Bilinen sınırlamalar</a></li>
+    <li><a href="#ai">Yapay zekâ kullanımı</a></li>
+  </ol>
+</div>
+
+<h2 id="ozet"><span class="n">1</span>Yönetici özeti</h2>
+<p class="lead">Uygulama, verilen HEC-RAS projesindeki yedi plan arasından Q50 senaryosunu
+insan müdahalesi olmadan belirliyor, projenin hesaplanmış sonuçlarından maksimum su derinliği
+ızgarasını kuruyor ve coğrafi referanslı bir GeoTIFF olarak yazıyor. Orijinal veriye hiçbir
+koşulda yazılmıyor ve bu her çalıştırmada kriptografik olarak kanıtlanıyor.</p>
+
+<div class="kpis">
+  <div class="kpi"><b>p05</b><span>otomatik seçilen plan</span></div>
+  <div class="kpi"><b>1,625 m</b><span>maksimum derinlik</span></div>
+  <div class="kpi"><b>4.139 m²</b><span>ıslak alan</span></div>
+  <div class="kpi"><b>8 / 8</b><span>senaryo doğrulaması</span></div>
+  <div class="kpi"><b>80</b><span>otomatik test</span></div>
+</div>
+
+<p>Çalışmanın en çok emek isteyen kısmı kod değil, <b>veriyi anlamaktı.</b> Teslim edilen proje
+olduğu gibi yeniden hesaplanamıyor; sistematik bir denetim sekiz ayrı tutarsızlık ortaya çıkardı.
+Bunların her biri belgelendi, çözülebilenler çalışma kopyasında onarıldı, çözülemeyen tek konu
+ise altı ayrı deneme ile daraltılıp raporlandı. Bu rapor, alınan teknik kararları ve neden
+alındıklarını anlatır.</p>
+
+<h2 id="kapsam"><span class="n">2</span>İsterlerin karşılığı</h2>
+<div class="tw">
+<table>
+  <thead><tr><th style="width:44%">Belgedeki ister</th><th style="width:12%">Durum</th><th>Karşılığı</th></tr></thead>
+  <tbody>
+    <tr><td>Proje klasörünü ve HEC-RAS kurulum dizinini alabilmeli</td><td class="ok-t">Karşılandı</td><td><code>--project</code> ve <code>--ras-dir</code>; sabit yol yok</td></tr>
+    <tr><td>Q50 otomatik belirlenmeli, kullanıcıya seçtirilmemeli</td><td class="ok-t">Karşılandı</td><td>Proje dosyasındaki plan listesi + sınır kontrollü kalıp</td></tr>
+    <tr><td>Harita HEC-RAS proje sonuçları kullanılarak üretilmeli</td><td class="ok-t">Karşılandı</td><td>Sonuç HDF5'inden hücre bazlı maksimum su kotu</td></tr>
+    <tr><td>OUTPUT klasörüne <code>q50_depth.tif</code> adıyla yazılmalı</td><td class="ok-t">Karşılandı</td><td>Varsayılan çıktı yolu</td></tr>
+    <tr><td>Anlaşılır durum bilgisi, kontrolsüz kapanma olmamalı</td><td class="ok-t">Karşılandı</td><td>Adım adım rapor, hata sınıfı başına çıkış kodu</td></tr>
+    <tr><td>Orijinal proje dosyaları değiştirilmemeli</td><td class="ok-t">Karşılandı</td><td>Çalışma kopyası + SHA-256 bütünlük kanıtı</td></tr>
+    <tr><td>Hazır sonuç rasterı kopyalanmamalı</td><td class="ok-t">Karşılandı</td><td>Harita her koşuda sonuçlardan hesaplanıyor</td></tr>
+    <tr><td>Yollar sabit bilgisayara gömülmemeli</td><td class="ok-t">Karşılandı</td><td>Tüm yollar argüman</td></tr>
+    <tr><td>Talimatlar izlenerek yeniden üretilebilmeli</td><td class="ok-t">Karşılandı</td><td>README + tek komut</td></tr>
+    <tr><td>Uygulama HEC-RAS hesabını tetiklemeli</td><td class="warn-t">Kısmi</td><td>Kod mevcut ve çalışıyor; HEC-RAS motoru teslim edilen veriyle çöküyor — <a href="#cokme">bölüm 8</a></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="q50"><span class="n">3</span>Q50 senaryosunun belirlenmesi</h2>
+<p>Projede yedi plan var. Doğru olanı bulmak ilk bakışta bir metin araması gibi görünüyor;
+uygulamada iki ayrı tuzak barındırıyor.</p>
+
+<div class="tw">
+<table>
+  <thead><tr><th>Plan</th><th>Plan Title</th><th>Short Identifier</th><th>Geometri / Akış</th></tr></thead>
+  <tbody>
+    <tr><td>p01</td><td>A_A_B_INPNAR_STEADY</td><td>A_A_B_INPINAR_STEADY</td><td>g01 / f01</td></tr>
+    <tr><td>p02</td><td>A_A_B_INPINAR_STEADY</td><td>A_A_B_INPINAR</td><td>g01 / f01</td></tr>
+    <tr><td>p03</td><td>A_A_B_INPINAR_UNSTEADY_2D</td><td>INPINAR_<b>Q500</b>_UNSTEADY</td><td>g03 / u01</td></tr>
+    <tr><td>p04</td><td>A_A_B_INPINAR_<b>Q500</b></td><td>A_A_B_INPINAR_<b>Q500</b></td><td>g03 / u04</td></tr>
+    <tr><td><b>p05</b></td><td><b>A_A_B_INPINAR_Q50</b></td><td><b>Q50</b></td><td>g03 / u05</td></tr>
+    <tr><td>p06</td><td>A_A_B_INPINAR_Q100</td><td>Q100</td><td>g03 / u06</td></tr>
+    <tr><td>p07</td><td>A_A_B_INPINAR_Q1000</td><td>Q1000</td><td>g03 / u08</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Tuzak 1 — alt dize eşleşmesi</h3>
+<p>En doğal çözüm olan alt dize araması sessizce yanlış cevap verir, çünkü <code>"Q50"</code>
+dizisi <code>"Q500"</code> metninin içinde geçer:</p>
+<pre><code><span class="c"># Naif yaklaşım üç planla eşleşir: p03, p04 ve p05</span>
+&gt;&gt;&gt; <span class="b">"Q50"</span> <span class="r">in</span> <span class="b">"INPINAR_Q500_UNSTEADY"</span>
+<span class="g">True</span>   <span class="c">← yanlış eşleşme</span></code></pre>
+<p>Çözüm, Q50'nin iki yanında rakam olmamasını şart koşan sınır kontrollü bir kalıptır:</p>
+<pre><code>(?&lt;![0-9])[Qq]0*50(?![0-9])</code></pre>
+<p><code>(?&lt;![0-9])</code> öncesinde, <code>(?![0-9])</code> sonrasında rakam istemez; <code>0*</code>
+ise <code>Q050</code> gibi sıfır dolgulu yazımı kabul eder. Kalıp yedi planın tamamında ve ayrıca
+yapay örneklerde sınandı: <code>Q50</code> ve <code>Q050</code> eşleşiyor; <code>Q500</code>,
+<code>Q5000</code>, <code>Q100</code>, <code>Q1000</code> eşleşmiyor.</p>
+
+<h3>Tuzak 2 — proje listesinde olmayan plan dosyası</h3>
+<p>Aynı klasörde <code>Backup.p01</code> adlı bir dosya duruyor:</p>
+<pre><code>Plan Title=A_A_B_INPINAR_Q50
+Short Identifier=Q50</code></pre>
+<p>Bu <b>tam eşleşme</b>. Klasörü <code>*.p??</code> deseniyle tarayan bir seçici iki sonuç bulur
+ve hangisinin doğru olduğunu bilemez — sınır kontrollü kalıp da bunu elemez, çünkü metin gerçekten
+birebir aynı.</p>
+<div class="callout">
+  <p><b>Alınan karar:</b> plan listesi klasör taramasıyla değil,
+  <code>A_A_B_INPINAR.prj</code> dosyasındaki <code>Plan File=</code> satırlarından okunur.
+  Proje dosyası yalnızca p01–p07'yi bildirir; <code>Backup.p01</code> orada yer almadığı için
+  hiç değerlendirmeye girmez. Tuzak bir istisna ile değil, <b>doğru kaynağı seçerek</b> çözülür.</p>
+</div>
+<p>Proje dosyasında ayrıca <code>Current Plan=p05</code> yazıyor. Bu bilgi <b>seçim ölçütü olarak
+kullanılmadı</b> — belge otomatik belirleme istiyor ve bu alan projeyi en son kimin nasıl
+kapattığına bağlı. Yalnızca çalışma kaydına "seçimle uyuşuyor" notu olarak düşülür.</p>
+<p>Sıfır eşleşme ve çoklu eşleşme ayrı ayrı hata verir; hiçbir durumda "ilkini al" davranışı
+yoktur. Nitekim bu projede <code>--scenario Q500</code> iki planla eşleştiği için bilinçli olarak
+reddedilir.</p>
+
+<h2 id="hecras"><span class="n">4</span>HEC-RAS ile etkileşim</h2>
+<p>HEC-RAS bir Windows programıdır; bu, boru hattındaki tek platforma bağlı adımdır ve tek bir
+modüle hapsedilmiştir. Sürüş, belgenin de önerdiği <b>ras-commander</b> kütüphanesi üzerinden
+yapılır — belge dışı komut satırı anahtarı uydurulmamıştır.</p>
+<div class="tw">
+<table>
+  <thead><tr><th>Yol</th><th>Çağrı</th><th>Ne yapar</th></tr></thead>
+  <tbody>
+    <tr><td>Varsayılan</td><td><code>RasCmdr.compute_plan()</code></td><td>HEC-RAS komut satırı çalıştırıcısı</td></tr>
+    <tr><td>Alternatif</td><td><code>RasControl.run_plan()</code></td><td><code>RAS66.HECRASController</code> COM otomasyonu — arayüzün kullandığı arabirim</td></tr>
+  </tbody>
+</table>
+</div>
+<p>Kütüphanenin fonksiyon adları ve parametreleri hatırdan veya dokümandan değil, <b>kurulu paket
+üzerinde <code>inspect.signature</code> ile okunarak</b> yazıldı. Bu, çalışmayan kod riskini
+baştan ortadan kaldırdı.</p>
+
+<h3>Kaynak bütünlüğü</h3>
+<p>HEC-RAS bir planı çalıştırdığında proje klasörüne yazar. Bu yüzden uygulama proje ağacını önce
+bir çalışma dizinine kopyalar ve hesabı orada yapar. Kısıtın gerçekten sağlandığı ayrıca
+<b>kanıtlanır</b>: çalışma başında ve sonunda kaynak klasörün parmak izi çıkarılıp karşılaştırılır.</p>
+<pre><code>integrity   <span class="g">source unchanged (176 files, full check)</span></code></pre>
+<p><code>--integrity full</code> her dosyanın SHA-256 özetini alır. Bu, "değiştirmedim" demenin
+değil, gösterebilmenin yoludur.</p>
+
+<h2 id="derinlik"><span class="n">5</span>Derinlik haritasının üretimi</h2>
+<div class="callout warn">
+  <p><b>Kritik bulgu:</b> HEC-RAS hazır bir maksimum derinlik veri seti üretmiyor. Sonuç
+  dosyasındaki özet çıktı <code>Maximum Water Surface</code>, yani hücre başına maksimum su
+  <b>kotu</b> (2 × 5.667: kot ve zaman). Derinlik türetilmek zorunda.</p>
+</div>
+<pre><code>derinlik(piksel) = pikseli kaplayan hücrenin maksimum su kotu
+                 − o pikseldeki arazi kotu</code></pre>
+<p>Izgara hücre çözünürlüğünde değil <b>arazi çözünürlüğünde</b> kurulur (bu veri setinde 0,1 m),
+çünkü bir HEC-RAS 2D hücresi düz değildir; içinde alt-ızgara topografya taşır. Pencere, arazi
+rasterinin kendi piksel ızgarasına hizalanır; böylece arazi yeniden örneklenmeden okunur.</p>
+
+<h3>Üç ayrıntı bu haritayı doğru yapıyor</h3>
+<p><b>1 · Hücre çokgenleri.</b> <code>Cells FacePoint Indexes</code> bir hücrenin köşelerini verir
+ama halka sırasında vermez. Köşeler hücre merkezine göre açıya sıralanır; HEC-RAS 2D hücreleri
+dışbükey olduğu için bu sıralama tam olarak çokgen sınırıdır.</p>
+
+<p><b>2 · Arazi kot değişiklikleri.</b> Geometri <code>merge.Clone</code> arazisi üzerine kurulu.
+RASMapper arazi katmanı bir çifttir: <code>.vrt</code> kot ızgarasını, <code>.hdf</code> ise
+üzerine çizilen değişiklikleri tutar — burada <b>69 bina için +20 m</b>. Bu değişiklikler
+<code>.vrt</code>'ye gömülü değildir, RASMapper onları anlık uygular. Yalnızca <code>.vrt</code>
+okunursa harita binaların üstüne metrelerce su boyar:</p>
+<div class="tw">
+<table>
+  <thead><tr><th>Bina kot değişikliği</th><th>Ortalama derinlik</th><th>Değerlendirme</th></tr></thead>
+  <tbody>
+    <tr><td>Uygulanmadan</td><td class="bad-t">3,37 m</td><td>Fiziksel olarak imkânsız</td></tr>
+    <tr><td>Uygulandıktan sonra</td><td class="ok-t">0,13 m</td><td>Hücre bazlı ortalama 0,117 m ile tutarlı</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p><b>3 · Islanmamış hücreler.</b> Hiç ıslanmayan bir hücre için HEC-RAS maksimum su kotunu
+hücrenin kendi taban kotu olarak raporlar — bu su değildir. Tabanı bir bina üzerinde oturan kuru
+hücreler, binanın kaplamadığı şeritte 20 m derinlik üretir. Bu yüzden yalnızca
+<code>maksimum su kotu &gt; hücre taban kotu</code> olan hücreler boyanır. Kural olmadan artık
+36–54 piksel 2 m'nin üzerinde, en fazlası 19,96 m çıkıyordu; kuralla birlikte en derin piksel
+<b>1,625 m</b>.</p>
+
+<h3>Koordinat sistemi</h3>
+<p>CRS, sonuç dosyasının kök <code>Projection</code> özniteliğindeki WKT'den okunur.
+<code>EPSG:32636</code> elle yazılmamıştır — ve yazılmamalıydı: bu izdüşüm merkez meridyen 30°E
+ile Transverse Mercator, ancak <b>ölçek faktörü 1,0</b>; oysa UTM 36N 0,9996 kullanır. Model
+UTM 36N <b>değildir</b> ve <code>to_epsg()</code> haklı olarak boş döner. Doğru kaynak, projenin
+kendi WKT'sidir.</p>
+
+<h3>Denenip vazgeçilen bir yöntem</h3>
+<p>Taşkın kenarının tırtıklı görünümünü yumuşatmak için ıslak hücre merkezleri arasında doğrusal
+enterpolasyonla eğimli bir su yüzeyi denendi. Sonuç fiziksel olarak imkânsızdı: maksimum derinlik
+<b>20,4 m</b>, 99. yüzdelik <b>11,4 m</b> (doğrusu 1,6 m). Sebep, ıslak hücrelerin kopuk kümeler
+halinde olması ve üçgenlemenin vadinin bir yamacından diğerine uzanmasıydı.</p>
+<div class="callout">
+  <p>Yanlış çalışan bir seçeneği "opsiyonel" diye teslime koymak yerine kaldırıldı ve gerekçesi
+  belgelendi. <b>Teslim edilen her satır savunulabilir olmalıdır.</b></p>
+</div>
+
+<h2 id="dogrulama"><span class="n">6</span>Çıktının doğru senaryoya ait olduğunun doğrulanması</h2>
+<p>"p05'i seçtim" bir doğrulama değildir. Zincirin her halkası kontrol edilir ve sonuçlar çalışma
+kaydına basılır:</p>
+<pre><code>Scenario verification:
+  <span class="g">[ok]</span> results belong to the selected plan: results say plan file 'A_A_B_INPINAR.p05'
+  <span class="g">[ok]</span> plan title agrees: results 'A_A_B_INPINAR_Q50' vs plan file 'A_A_B_INPINAR_Q50'
+  <span class="g">[ok]</span> short identifier agrees: results 'Q50' vs plan file 'Q50'
+  <span class="g">[ok]</span> results still carry the Q50 label
+  <span class="g">[ok]</span> geometry agrees: results 'A_A_B_INPINAR.g03' vs plan 'g03'
+  <span class="g">[ok]</span> flow file agrees: results 'A_A_B_INPINAR.u05' vs plan 'u05'
+  <span class="g">[ok]</span> the grid holds water: 413858 wet pixels, maximum depth 1.625 m
+  <span class="g">[ok]</span> depth stays inside the modelled water surface</code></pre>
+<p>Bir kontrol düşerse uygulama çıktı yazmadan durur. Ayrıca <b>künye GeoTIFF'in içine gömülür</b>:
+senaryo, plan numarası, plan başlığı, kısa kimlik, geometri, akış dosyası, simülasyon penceresi,
+HEC-RAS sürümü, kaynak dosya adı, arazi adı ve HEC-RAS'ın gerçekten çalıştırılıp çalıştırılmadığı.
+Dosya adına güvenmek gerekmez:</p>
+<pre><code>$ gdalinfo OUTPUT/q50_depth.tif
+  SCENARIO=Q50            PLAN_NUMBER=p05        PLAN_SHORT_ID=Q50
+  GEOMETRY=A_A_B_INPINAR.g03                     FLOW_FILE=A_A_B_INPINAR.u05
+  SIMULATION_WINDOW=02May2025 01:00:00 to 02May2025 02:10:00
+  HEC_RAS_VERSION=HEC-RAS 6.6 September 2024     HEC_RAS_EXECUTED=False</code></pre>
+<p>Son olarak çıktı <b>açılıp bakılmıştır</b> — üretmek ile doğrulamak aynı şey değildir.</p>
+
+<h2 id="denetim"><span class="n">7</span>Teslim edilen verinin denetimi</h2>
+<p>Belge, adayın proje yapısını incelemesini ve dosya ilişkilerini kendisinin belirlemesini
+bekliyor. Bu, deneme yanılmayla değil, sistematik bir denetim aracıyla yapıldı
+(<code>tools/audit_project.py</code>): proje neyi bildiriyor, her plan neye ihtiyaç duyuyor,
+diskte ne var — ve bu üçünün ayrıştığı her nokta raporlanıyor.</p>
+<p><b>Sekiz engelleyici bulgu:</b></p>
+<div class="tw">
+<table>
+  <thead><tr><th style="width:18%">Konu</th><th>Bulgu</th></tr></thead>
+  <tbody>
+    <tr><td>p03</td><td><code>Flow File=u01</code> diyor; dosya diskte var ama proje dosyası onu akış dosyaları arasında bildirmiyor</td></tr>
+    <tr><td>p04</td><td>Giriş debisi <code>..\..\akarcay_debi.dss</code> — proje klasörünün iki üstü, teslim paketinin tamamen dışı</td></tr>
+    <tr><td>p05, p06, p07</td><td>Giriş debisi <code>.\_CBS\akarcay_debiler\akarcay_debi.dss</code>; klasörün diskteki adı <b><code>2_CBS</code></b></td></tr>
+    <tr><td>g01, g02, g03</td><td>Geometri dosyalarında ön işlenmiş tablolar yok: <code>Structures/Property Tables</code>, <code>GeomPreprocess</code>, <code>Cross Sections</code></td></tr>
+  </tbody>
+</table>
+</div>
+<p>Ayrıca dört akış dosyasının hiçbirinde hidrograf gömülü değil (<code>Flow Hydrograph= 0</code>);
+veri DSS'ten gelmek zorunda. HEC-RAS bir projeyi açarken <b>bildirilen bütün planları</b> yükler,
+dolayısıyla tek bir bozuk plan bütün açılışı düşürür.</p>
+
+<h3>Uygulamanın yaptığı onarımlar</h3>
+<p>Hepsi <b>yalnızca çalışma kopyasında</b> ve hepsi çalışma kaydına yazılarak:</p>
+<pre><code>[4/6] prepare     repairing 2 unresolved path(s)
+      .\_CBS\akarcay_debiler\akarcay_debi.dss -&gt; copied into place from 2_CBS\...
+      .\Q50\Q50.dss -&gt; created output folder
+      4 unrelated plan(s) in this project cannot be loaded by HEC-RAS;
+      reducing the working copy to the selected plan
+[4/6] geometry    A_A_B_INPINAR.g03.hdf is missing 2 preprocessed group(s)
+      set the terrain timestamp to the one the geometry records (10JUN2026 17:49:26)
+      RasProcess.exe CompleteGeometry -&gt; rc=0 ... LAYER=COMPLETE
+      A_A_B_INPINAR.g03.hdf rebuilt from A_A_B_INPINAR.p05.hdf</code></pre>
+<p>Çözülmeyen bir giriş dosyası için proje ağacında aynı adlı dosya aranır; <b>tam bir tane</b>
+bulunursa modelin beklediği yola kopyalanır. Hiç ya da birden fazla aday çıkarsa tahmin
+yürütülmez, anlamlı hatayla durulur — <i>yanlış hidrografla hesaplanmış bir taşkın haritası,
+hesaplanmamış olmasından kötüdür.</i></p>
+<p>Eksik geometri tabloları için önce HEC-RAS'ın kendi aracı denenir
+(<code>RasProcess.exe CompleteGeometry</code>); yazamazsa tablolar, orijinal koşunun ürettiği
+sonuç dosyasındaki eksiksiz geometriden alınır. Aracın kendi başarı bayrağına güvenilmez —
+sonuç, dosya açılıp <b>tabloların gerçekten geldiği doğrulanarak</b> ölçülür.</p>
+
+<h2 id="cokme"><span class="n">8</span>Motor çöküşü ve eleme çalışması</h2>
+<p>Yukarıdaki onarımlardan sonra HEC-RAS geometriyi sorunsuz işliyor, ardından unsteady motoru
+başlar başlamaz çöküyor:</p>
+<pre><code>Writing Geometry...
+<span class="g">inpinar: Mesh property tables are current.</span>
+Completed Writing Geometry
+Geometric Preprocessor HEC-RAS 6.6 September 2024
+Finished Processing Geometry
+Performing Unsteady Flow Simulation  HEC-RAS 6.6 September 2024
+<span class="r">forrtl: severe (157): Program Exception - access violation</span>
+Image              PC                Routine            Line   Source
+RasUnsteady.exe    00007FF64F701486  <span class="y">READ_UN_HDF_STRUC</span>  330  Read_UN_HDF_STRUC_GRP.for
+RasUnsteady.exe    00007FF64F8C0CC3  SNETREAL2          179  Snetreal2.for
+RasUnsteady.exe    00007FF64F9D561A  UNET_START         144  Unet_start.for
+Error with program: RasUnsteady.exe  Exit Code = 157</code></pre>
+<p><code>Mesh property tables are current</code> satırı önemli: HEC-RAS onarılan geometriyi
+<b>kabul ediyor</b> ve yeniden kurmuyor. Uygulamanın koşu sonrası tanısı da bunu doğruluyor:</p>
+<pre><code>After the run: <span class="g">the geometry still has its preprocessed tables</span>, so the crash is not about them</code></pre>
+
+<h3>Yapılan eleme</h3>
+<p>Neden, tahminle değil, tek tek değişken sabitlenerek daraltıldı. Tüm denemeler Windows 11 ve
+HEC-RAS 6.6 üzerinde ölçüldü:</p>
+<div class="tw">
+<table>
+  <thead><tr><th style="width:66%">Deneme</th><th>Sonuç</th></tr></thead>
+  <tbody>
+    <tr><td>Teslim edildiği gibi (yalnız DSS yolu onarılmış)</td><td class="bad-t">Çöküyor</td></tr>
+    <tr><td>+ proje tek plana indirgenmiş</td><td class="bad-t">Çöküyor</td></tr>
+    <tr><td>+ hidrograf akış dosyasına gömülmüş, DSS bağımlılığı kaldırılmış</td><td class="bad-t">Çöküyor</td></tr>
+    <tr><td>+ eksik geometri tabloları geri konmuş, koşu sonrası yerinde olduğu doğrulanmış</td><td class="bad-t">Çöküyor</td></tr>
+    <tr><td>+ <code>RasProcess.exe CompleteGeometry</code> çalıştırılmış</td><td class="bad-t">Çöküyor</td></tr>
+    <tr><td>+ RASMapper kapatılmış, arazi zaman damgası hizalanmış</td><td class="bad-t">Çöküyor</td></tr>
+    <tr><td><b>HEC-RAS arayüzünde elle açılıp çalıştırılmış</b></td><td class="bad-t">Çöküyor</td></tr>
+  </tbody>
+</table>
+</div>
+<div class="callout warn">
+  <p><b>Sonuç:</b> çöküş uygulama kaynaklı değildir. Aynı hata, proje HEC-RAS arayüzünde elle
+  açılıp çalıştırıldığında da oluşmaktadır. Geriye kalan açıklama, modelin 2D hidrolik
+  bağlantılarında (menfez grupları) HEC-RAS'ın kendi hatası ya da teslim paketinde henüz tespit
+  edilememiş bir eksiktir. Konu, doğrulanabilir bir cevap üretilemediği için tahminle
+  kapatılmamış, olduğu gibi raporlanmıştır.</p>
+</div>
+<p>Bu nedenle teslim edilen çıktı, projenin <b>kendi hesaplanmış sonuçlarından</b> üretilmiştir.
+Hazır bir raster kopyalanmamıştır; harita her çalıştırmada HEC-RAS'ın kendi sonuç dosyasından
+yeniden hesaplanır. GeoTIFF künyesindeki <code>HEC_RAS_EXECUTED</code> etiketi hangi durumun
+geçerli olduğunu her zaman açıkça bildirir.</p>
+
+<h2 id="hata"><span class="n">9</span>Hata yönetimi</h2>
+<p>Beklenebilir her hata tek satırlık bir mesaj ve çoğu zaman ne yapılması gerektiğini söyleyen
+bir ipucu üretir. Yığın izi yalnızca gerçek bir yazılım hatasında görünür.</p>
+<div class="tw">
+<table>
+  <thead><tr><th style="width:12%">Kod</th><th>Durum</th><th style="width:12%">Kod</th><th>Durum</th></tr></thead>
+  <tbody>
+    <tr><td>0</td><td>Başarılı</td><td>6</td><td>Sonuç dosyası eksik ya da yarım</td></tr>
+    <tr><td>2</td><td>Argüman hatası</td><td>7</td><td>Arazi çözülemedi</td></tr>
+    <tr><td>3</td><td>Proje bulunamadı</td><td>8</td><td>Senaryo doğrulaması düştü</td></tr>
+    <tr><td>4</td><td>Senaryo sıfır/çoklu eşleşti</td><td>70</td><td>Beklenmeyen hata (kayda tam iz)</td></tr>
+    <tr><td>5</td><td>HEC-RAS başlatılamadı / hesap başarısız</td><td>130</td><td>Kullanıcı iptali</td></tr>
+  </tbody>
+</table>
+</div>
+<p>En sert sınav sahada geldi. Çalıştırıcı kütüphane hesabı "başarılı" olarak raporladı; uygulama
+buna <b>inanmadı</b>, sonuç dosyasını kendisi açtı, yarım olduğunu gördü ve HEC-RAS'ın kendi hesap
+günlüğünü alıntılayarak durdu:</p>
+<pre><code><span class="r">ERROR:</span> HEC-RAS left A_A_B_INPINAR.p05.hdf unfinished (no Plan Data/Plan Information).
+       The runner reported success, but the model did not compute.
+  HEC-RAS wrote this in ... -&gt; Compute Messages:
+    forrtl: severe (157): Program Exception - access violation
+    ...
+  After the run: the geometry still has its preprocessed tables</code></pre>
+<p>Denenmiş hata durumları: boş klasör, proje dosyası yok, hesaplanmamış plan, olmayan senaryo,
+eksik argüman, desteklenmeyen arazi değişikliği tipi, arazi rasteri yok, yarım sonuç dosyası,
+çözülemeyen giriş dosyası, çok sayıda aday. Hepsi kontrollü mesajla çıkar ve <b>80 otomatik
+test</b> ile sabitlenmiştir.</p>
+
+<h2 id="sonuc"><span class="n">10</span>Sonuçlar</h2>
+<div class="kpis">
+  <div class="kpi"><b>4788 × 2756</b><span>ızgara, 0,1 m çözünürlük</span></div>
+  <div class="kpi"><b>413.858</b><span>ıslak piksel</span></div>
+  <div class="kpi"><b>1,625 m</b><span>maksimum derinlik</span></div>
+  <div class="kpi"><b>0,130 m</b><span>ortalama derinlik</span></div>
+</div>
+<figure>
+  <img src="q50_depth_preview.png" alt="Q50 maksimum su derinliği haritası ve derinlik dağılımı">
+  <figcaption><b>Şekil 1.</b> Q50 maksimum su derinliği (plan p05). Sol: arazi üzerine bindirilmiş
+  derinlik haritası. Sağ: derinlik dağılımı (logaritmik ölçek). Su, arazideki dere koridorunu
+  takip ediyor; ıslak alan 4.139 m², medyan derinlik 0,098 m, 99. yüzdelik 0,516 m.</figcaption>
+</figure>
+<p>Simülasyon penceresi 02 May 2025 01:00 – 02:10 (70 dakika, 5 dakikada bir çıktı). Giriş
+hidrografı 15 ordinat, tepe debi 1,69 m³/s. Bu değerler hem sonuç dosyasındaki zaman adımı
+sayısıyla hem de projedeki DSS serisiyle birebir örtüşmektedir — ürettiğimiz haritanın doğru
+olaya ait olduğunun bağımsız bir teyididir.</p>
+
+<h2 id="sinir"><span class="n">11</span>Bilinen sınırlamalar</h2>
+<ul>
+  <li><b>Teslim edilen model bu HEC-RAS kurulumunda yeniden hesaplanamıyor.</b> Ayrıntı ve
+      eleme tablosu için <a href="#cokme">bölüm 8</a>. Çıktı, projenin kendi sonuçlarından
+      üretilmiştir.</li>
+  <li><b>Su yüzeyi hücre içinde sabit kabul edilir.</b> Modelin çözdüğü büyüklük budur. Sonuç,
+      taşkın kenarında pürüzsüz değil tırtıklı bir sınır verir.</li>
+  <li><b>Yalnızca 2D akış alanları işlenir.</b> 1D kesit sonuçlarından derinlik ızgarası
+      üretilmez; böyle bir planla çalıştırılırsa anlaşılır hata verilir.</li>
+  <li><b>Yalnızca <code>Add</code> tipi arazi kot değişikliği destekleniyor.</b> Veri setinde
+      yalnızca bu tip var; başka bir tiple karşılaşılırsa sessizce yanlış harita üretmek yerine
+      durulur.</li>
+  <li><b>Referans çıktı ile sayısal karşılaştırma yapılmadı.</b> Toplantıda gösterilen çıktının
+      bir kopyası elde bulunmadığından karşılaştırma görsel düzeyde kalmıştır.</li>
+</ul>
+
+<h2 id="ai"><span class="n">12</span>Yapay zekâ kullanımı</h2>
+<p>Belge, yapay zekâ destekli araç kullanımını serbest bırakmakta ve beyan istemektedir.
+Kullanılan araç: <b>Claude (Anthropic) — Opus 5, Claude Code komut satırı ajanı.</b> Başka bir
+üretken yapay zekâ aracı kullanılmamıştır.</p>
+<div class="tw">
+<table>
+  <thead><tr><th style="width:26%">Aşama</th><th>Kullanım</th><th style="width:32%">Doğrulama biçimi</th></tr></thead>
+  <tbody>
+    <tr><td>Veri keşfi</td><td>Sonuç dosyasındaki 439 HDF5 yolunun taranması, veri setlerinin bulunması</td><td>Kod çalıştırılarak; şekil, birim ve değer aralıkları basıldı</td></tr>
+    <tr><td>Analiz</td><td>Bina kot değişikliği ve kuru hücre etkilerinin bulunması</td><td>Her iki etki sayısal olarak ölçüldü</td></tr>
+    <tr><td>Kütüphane</td><td><code>ras-commander</code> API imzalarının çıkarılması</td><td>Paket kuruldu, <code>inspect.signature</code> ile okundu</td></tr>
+    <tr><td>Teşhis</td><td>Motor çöküşünün nedeninin daraltılması</td><td>Denetim aracı yazıldı; her hipotez ölçümle elendi</td></tr>
+    <tr><td>Kod ve test</td><td>Modüllerin ve 80 testin yazılması</td><td>Gerçek veri üzerinde uçtan uca çalıştırıldı</td></tr>
+  </tbody>
+</table>
+</div>
+<p>Uygulanan kurallar: doğrulanmamış hiçbir kütüphane çağrısı koda alınmadı; her teknik iddia
+veriye karşı sınandı; çalışmayan bir özellik (eğimli su yüzeyi) ölçülüp kaldırıldı; doğrulanamayan
+tek adım açıkça işaretlendi. Kodun tamamı okunmuş, çalıştırılmış ve savunulabilir durumdadır.</p>
+
+</main>
+
+<footer>
+  <p><b>Hazırlayan:</b> Emirhan Fırtına · <b>Tarih:</b> 29 Ağustos 2026 ·
+     <b>Uygulama:</b> q50depth 1.0.0</p>
+  <p>Bu rapor Atinen Mühendislik için hazırlanan case study çalışmasının teknik açıklama
+     belgesidir. Kaynak kod, çıktı, bağımlılık listesi, çalışma kaydı ve ayrıntılı veri denetimi
+     teslim klasöründeki <code>uygulama/</code> dizinindedir.</p>
+</footer>
+</div>
