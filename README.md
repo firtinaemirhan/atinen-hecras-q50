@@ -106,6 +106,10 @@ python -m pip install --upgrade pip
 pip install -r requirements-windows.txt
 ```
 
+`-r` şart: proje bir paket olarak kurulmak zorunda değil, `python main.py` ile
+çalışır. İsterseniz paket olarak da kurulabilir — `pip install -e ".[windows]"` —
+o zaman `q50depth` komutu da kullanılabilir hale gelir.
+
 **macOS / Linux (yalnız sonuç işleme — HEC-RAS bu platformlarda yok):**
 
 ```bash

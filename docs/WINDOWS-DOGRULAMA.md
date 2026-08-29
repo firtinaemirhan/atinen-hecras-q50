@@ -33,6 +33,10 @@ python -m pip install --upgrade pip
 pip install -r requirements-windows.txt
 ```
 
+⚠️ `-r` işaretini atlamayın. `pip install .` veya `pip install C:\atinen\...`
+demeyin — proje `python main.py` ile çalışır, paket olarak kurulması gerekmez.
+(Yine de isterseniz `pip install -e ".[windows]"` çalışır.)
+
 **Beklenen:** her paket hazır `.whl` olarak iner, hiçbir şey derlenmez.
 **Tutmazsa:** çıktıda `Building wheel for ...` görüyorsanız Python sürümü uyumsuz
 demektir — 3.13 veya 3.14'e geçin. Komut İstemi (cmd) kullanın; PowerShell `activate`
