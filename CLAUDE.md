@@ -38,8 +38,19 @@ içindekiler oluşturur ve `Q50_CASE_DATA` gerektirir.
 
 ## Veri
 
-`CASE DATA 2` (1 Eylül 2026'da gelen düzeltilmiş veri, ~317 MB). Depoda
-**yok**, müşteri verisi. Yolu `Q50_CASE_DATA` ile verilir.
+`CASE DATA 2` (1 Eylül 2026'da gelen düzeltilmiş veri, 317 MB, 251 dosya).
+Depoda **yok**, müşteri verisi. Yolu `Q50_CASE_DATA` ile verilir; verilmezse
+masaüstünde `CASE DATA 2`, `CASE_DATA 2`, `CASE_DATA_2` adları denenir (klasör
+aktarımda ad değiştirebiliyor).
+
+Doğrulama işaretleri:
+- `AKA_AFY_BAY_INPINAR_1/3_Pafta/6_derinlik/q50_d.tif` var (1 561 857 bayt).
+  Eski veride `3_Pafta` ağacı hiç yok, ayırt edici işaret bu.
+- `1_Modeller/A_A_B_INPINAR.p05.hdf` SHA-256:
+  `f3df669a9abde3d6c53ce69254f3649a11da1c776b198145d21fc9ec114a43cd`
+  (bu dosya eski veride de aynı, yani tek başına yeni/eski ayrımı yapmaz).
+- Alt klasörler: `1_Modeller` 182 dosya, `2_Rapor` **boş** (müşteriden öyle
+  geldi), `3_Pafta` 69 dosya.
 
 Eski `CASE_DATA` hatalıydı, kullanma.
 

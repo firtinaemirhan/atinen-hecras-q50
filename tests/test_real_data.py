@@ -15,7 +15,27 @@ import pytest
 from q50depth import depth, project, results, terrain, verify
 from q50depth.cli import main
 
-CASE_DATA = Path(os.environ.get("Q50_CASE_DATA", Path.home() / "Desktop/CASE_DATA 2"))
+#: The delivered folder does not arrive under one fixed name: the client's
+#: transfer unpacks as "CASE DATA 2" with a space, while a copy made on macOS
+#: comes out as "CASE_DATA 2" with an underscore. Hard coding one of them made
+#: these tests skip on a machine where the data was sitting on the desktop the
+#: whole time, and a skipped test reads like a passing one.
+_CANDIDATES = ("CASE DATA 2", "CASE_DATA 2", "CASE_DATA_2")
+
+
+def _locate_case_data() -> Path:
+    override = os.environ.get("Q50_CASE_DATA")
+    if override:
+        return Path(override)
+    desktop = Path.home() / "Desktop"
+    for name in _CANDIDATES:
+        candidate = desktop / name
+        if candidate.exists():
+            return candidate
+    return desktop / _CANDIDATES[0]
+
+
+CASE_DATA = _locate_case_data()
 
 #: The client's own Q50 depth map, delivered alongside the model. It is the
 #: thing the output has to agree with, so the agreement is pinned by a test
@@ -25,7 +45,12 @@ REFERENCE = (
 )
 
 pytestmark = pytest.mark.skipif(
-    not CASE_DATA.exists(), reason=f"case data not present at {CASE_DATA}"
+    not CASE_DATA.exists(),
+    reason=(
+        f"case data not present at {CASE_DATA} "
+        f"(tried {', '.join(_CANDIDATES)} under ~/Desktop; "
+        "set Q50_CASE_DATA to point at it)"
+    ),
 )
 
 
