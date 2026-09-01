@@ -121,6 +121,18 @@ def build_parser() -> argparse.ArgumentParser:
         "'harvest' force one of the two; 'none' leaves the geometry alone.",
     )
     parser.add_argument(
+        "--ib-tables",
+        choices=("auto", "existing", "rebuild"),
+        default="auto",
+        help="What the unsteady engine should do about the internal boundary "
+        "(structure) tables. The delivered plan says 'UNET Use Existing IB "
+        "Tables=-1', i.e. read them from the geometry -- but the delivered "
+        "geometry has no Structures/Property Tables to read, which is where "
+        "READ_UN_HDF_STRUC dies. 'auto' (default) switches the flag off when "
+        "the geometry arrived without those tables, so HEC-RAS builds them; "
+        "'rebuild' always switches it off; 'existing' leaves the plan alone.",
+    )
+    parser.add_argument(
         "--inflow",
         choices=("dss", "inline"),
         default="dss",
@@ -331,9 +343,11 @@ def run(argv: list[str] | None = None) -> int:
             for line in dropped:
                 log.debug(f"        removed: {line}")
 
+        geometry_hdf = working_folder / f"{working_prj.stem}.{selected.geometry_file}.hdf"
+        delivered_absent = geometry.missing_tables(geometry_hdf)
+
         if args.geometry != "none":
-            geometry_hdf = working_folder / f"{working_prj.stem}.{selected.geometry_file}.hdf"
-            absent = geometry.missing_tables(geometry_hdf)
+            absent = delivered_absent
             if absent:
                 log.info(
                     f"[4/6] geometry    {geometry_hdf.name} is missing "
@@ -387,6 +401,25 @@ def run(argv: list[str] | None = None) -> int:
                             "      told HEC-RAS not to re-run the geometry "
                             f"preprocessor (Run HTab {previous.strip()} -> 0)"
                         )
+
+        rebuild_ib = args.ib_tables == "rebuild" or (
+            args.ib_tables == "auto"
+            and "Geometry/Structures/Property Tables" in delivered_absent
+        )
+        if rebuild_ib:
+            previous = project.set_plan_flag(
+                working_plan, "UNET Use Existing IB Tables", " 0 "
+            )
+            if previous is None:
+                log.info("      the plan does not set 'UNET Use Existing IB Tables'")
+            elif previous.strip() == "0":
+                log.info("      'UNET Use Existing IB Tables' was already off")
+            else:
+                log.info(
+                    "      told the unsteady engine to build the structure tables "
+                    f"rather than read them (UNET Use Existing IB Tables {previous.strip()} -> 0); "
+                    "the delivered geometry has none to read"
+                )
 
         if args.inflow == "inline":
             flow_path = working_folder / f"{working_prj.stem}.{selected.flow_file}"

@@ -1,0 +1,264 @@
+"""Run the HEC-RAS computation on Windows and keep the evidence, whatever happens.
+
+The delivered model does not compute as it stands: the unsteady engine dies
+with ``forrtl: severe (157) access violation`` inside ``READ_UN_HDF_STRUC``.
+There is more than one credible reason for that, and they are not
+distinguishable without running.  So this script does not argue: it runs the
+candidates one after another, keeps everything each one wrote, and stops at
+the first that produces a complete results file.
+
+Every attempt leaves behind, under ``--evidence``:
+
+    NN-<name>.log            everything the application printed
+    NN-<name>.compute.txt    HEC-RAS's own computation log, read back out of
+                             the plan HDF (this is what the GUI shows in its
+                             computation window)
+    NN-<name>.bco.txt        the .bco run log, when HEC-RAS wrote one
+
+That is the point of the script.  A run that fails and explains why is worth
+more than one that succeeds and cannot be shown.
+
+    python tools\\windows_verify.py ^
+        --project "C:\\path\\to\\CASE_DATA 2" ^
+        --ras-dir "C:\\Program Files (x86)\\HEC\\HEC-RAS\\6.6" ^
+        --reference "C:\\path\\to\\CASE_DATA 2\\AKA_AFY_BAY_INPINAR_1\\3_Pafta\\6_derinlik\\q50_d.tif"
+"""
+
+from __future__ import annotations
+
+import argparse
+import platform
+import shutil
+import subprocess
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+@dataclass(frozen=True)
+class Attempt:
+    name: str
+    why: str
+    arguments: list[str] = field(default_factory=list)
+
+
+#: In order of how well each is supported by what the data actually shows.
+ATTEMPTS = [
+    Attempt(
+        "ib-rebuild",
+        "The plan says 'UNET Use Existing IB Tables=-1' -- read the structure "
+        "tables from the geometry -- and the delivered geometry has no "
+        "Structures/Property Tables to read. READ_UN_HDF_STRUC is exactly the "
+        "routine that reads them. This switches the flag off and lets the "
+        "geometry preprocessor build them instead.",
+        ["--geometry", "none", "--ib-tables", "rebuild"],
+    ),
+    Attempt(
+        "rasprocess",
+        "Ask HEC-RAS's own RasProcess.exe CompleteGeometry to write the "
+        "preprocessed tables into the working copy's geometry before the run, "
+        "so the tables are consistent with that geometry's own numbering.",
+        ["--geometry", "rasprocess", "--ib-tables", "rebuild"],
+    ),
+    Attempt(
+        "harvest",
+        "Take the preprocessed tables from the geometry stored inside the "
+        "delivered p05 results. This is what earlier attempts did; it is kept "
+        "so the comparison is honest, but note the results file numbers its "
+        "faces and cells differently from the geometry file.",
+        ["--geometry", "harvest", "--ib-tables", "rebuild"],
+    ),
+    Attempt(
+        "controller",
+        "Drive the HEC-RAS COM automation object (RAS66.HECRASController), the "
+        "same interface the GUI uses, instead of the command line runner.",
+        ["--geometry", "none", "--ib-tables", "rebuild", "--runner", "controller"],
+    ),
+    Attempt(
+        "single-core",
+        "One core. A parallel solver can fail where a serial one does not, and "
+        "this was never tried.",
+        ["--geometry", "none", "--ib-tables", "rebuild", "--cores", "1"],
+    ),
+    Attempt(
+        "inline-hydrograph",
+        "Write the inflow hydrograph into the flow file so the run no longer "
+        "depends on HEC-RAS opening the DSS file at all.",
+        ["--geometry", "none", "--ib-tables", "rebuild", "--inflow", "inline"],
+    ),
+]
+
+
+def _compute_messages(plan_hdf: Path) -> str:
+    """HEC-RAS's computation log, which it stores inside the results file."""
+    try:
+        import h5py  # noqa: PLC0415
+    except ImportError:
+        return "(h5py not available)"
+    if not plan_hdf.is_file():
+        return "(no results file was written)"
+    keys = (
+        "Results/Summary/Compute Messages (text)",
+        "Results/Unsteady/Summary/Compute Messages (text)",
+        "Results/Summary/Compute Messages",
+    )
+    try:
+        with h5py.File(plan_hdf, "r") as handle:
+            for key in keys:
+                if key not in handle:
+                    continue
+                raw = handle[key][()]
+                if isinstance(raw, bytes):
+                    return raw.decode("latin-1", errors="replace")
+                parts = raw.tolist() if hasattr(raw, "tolist") else [raw]
+                if isinstance(parts, bytes):
+                    return parts.decode("latin-1", errors="replace")
+                return "\n".join(
+                    p.decode("latin-1", errors="replace") if isinstance(p, bytes) else str(p)
+                    for p in parts
+                )
+    except OSError as exc:
+        return f"(results file could not be opened: {exc})"
+    return "(the results file carries no computation log)"
+
+
+def _collect(workspace: Path, evidence: Path, stem: str) -> None:
+    """Copy whatever HEC-RAS wrote about this attempt next to our own log."""
+    folders = [p for p in workspace.glob("*") if p.is_dir()] or [workspace]
+    for folder in folders:
+        for plan_hdf in folder.glob("*.p05.hdf"):
+            (evidence / f"{stem}.compute.txt").write_text(
+                _compute_messages(plan_hdf), encoding="utf-8"
+            )
+        for bco in folder.glob("*.bco*"):
+            try:
+                shutil.copy2(bco, evidence / f"{stem}.bco.txt")
+            except OSError:
+                pass
+            break
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument("--project", type=Path, required=True,
+                        help="The delivered data folder (CASE DATA 2). Never modified.")
+    parser.add_argument("--ras-dir", type=Path, required=True,
+                        help=r'HEC-RAS installation, e.g. "C:\Program Files (x86)\HEC\HEC-RAS\6.6"')
+    parser.add_argument("--reference", type=Path,
+                        help="The client's q50_d.tif, to measure the result against.")
+    parser.add_argument("--evidence", type=Path, default=ROOT / "evidence",
+                        help="Where to keep the logs (default: ./evidence).")
+    parser.add_argument("--workspace", type=Path, default=Path.home() / "q50-workspace",
+                        help="Where the project is copied before computing.")
+    parser.add_argument("--output", type=Path, default=ROOT / "OUTPUT" / "q50_depth.tif")
+    parser.add_argument("--only", metavar="NAME",
+                        help="Run just one attempt by name, instead of all of them.")
+    parser.add_argument("--timeout", type=int, default=7200,
+                        help="Seconds to allow each attempt (default: 7200).")
+    args = parser.parse_args(argv)
+
+    if platform.system() != "Windows":
+        print("This script only does anything on Windows: HEC-RAS runs nowhere else.")
+        print(f"Detected {platform.system()}. Nothing was run.")
+        return 2
+
+    args.evidence.mkdir(parents=True, exist_ok=True)
+    attempts = ATTEMPTS
+    if args.only:
+        attempts = [a for a in ATTEMPTS if a.name == args.only]
+        if not attempts:
+            parser.error(f"no attempt named {args.only!r}; "
+                         f"choose from {', '.join(a.name for a in ATTEMPTS)}")
+
+    print("=" * 72)
+    print(f"python      {sys.version.split()[0]}")
+    print(f"platform    {platform.platform()}")
+    print(f"HEC-RAS     {args.ras_dir}")
+    try:
+        import ras_commander  # noqa: PLC0415
+        print(f"ras-commander {getattr(ras_commander, '__version__', 'installed')}")
+    except ImportError:
+        print("ras-commander NOT INSTALLED -- run: pip install -r requirements-windows.txt")
+        return 2
+    print("=" * 72)
+
+    summary: list[tuple[str, str]] = []
+    for index, attempt in enumerate(attempts, start=1):
+        stem = f"{index:02d}-{attempt.name}"
+        print()
+        print("-" * 72)
+        print(f"[{index}/{len(attempts)}] {attempt.name}")
+        for line in attempt.why.split(". "):
+            if line.strip():
+                print(f"    {line.strip().rstrip('.')}.")
+        print("-" * 72)
+
+        command = [
+            sys.executable, str(ROOT / "main.py"),
+            "--project", str(args.project),
+            "--ras-dir", str(args.ras_dir),
+            "--workspace", str(args.workspace),
+            "--overwrite-workspace",
+            "--output", str(args.output),
+            "--integrity", "off",
+            *attempt.arguments,
+        ]
+        print("  " + " ".join(f'"{c}"' if " " in c else c for c in command))
+        try:
+            finished = subprocess.run(
+                command, capture_output=True, text=True, timeout=args.timeout, cwd=str(ROOT)
+            )
+            transcript = (finished.stdout or "") + "\n" + (finished.stderr or "")
+            code = finished.returncode
+        except subprocess.TimeoutExpired:
+            transcript = f"(timed out after {args.timeout} s)"
+            code = 124
+
+        (args.evidence / f"{stem}.log").write_text(transcript, encoding="utf-8")
+        _collect(args.workspace, args.evidence, stem)
+
+        tail = [line for line in transcript.splitlines() if line.strip()][-12:]
+        for line in tail:
+            print(f"  | {line}")
+
+        if code == 0:
+            print()
+            print(f"  SUCCEEDED. Evidence in {args.evidence}\\{stem}.*")
+            summary.append((attempt.name, "succeeded"))
+            break
+        print()
+        print(f"  failed (exit {code}). Evidence in {args.evidence}\\{stem}.*")
+        summary.append((attempt.name, f"failed (exit {code})"))
+
+    print()
+    print("=" * 72)
+    for name, outcome in summary:
+        print(f"  {name:<20} {outcome}")
+    print("=" * 72)
+
+    succeeded = summary and summary[-1][1] == "succeeded"
+    if not succeeded:
+        print()
+        print("Nothing computed. Send the whole evidence folder back; the "
+              "computation logs say which routine HEC-RAS died in, and that "
+              "is what decides the next step.")
+        return 1
+
+    print()
+    print(f"The raster HEC-RAS's own results produced: {args.output}")
+    if args.reference is not None and args.reference.is_file():
+        print()
+        print("Measuring it against the client's map:")
+        subprocess.run(
+            [sys.executable, str(ROOT / "tools" / "compare_reference.py"),
+             str(args.output), str(args.reference),
+             "--png", str(args.evidence / "comparison.png")],
+            cwd=str(ROOT),
+        )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
