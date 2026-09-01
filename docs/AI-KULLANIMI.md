@@ -14,11 +14,12 @@ hangi araçların hangi amaçla kullanıldığının belirtilmesini istiyor. Bey
 | --- | --- | --- |
 | Veri keşfi | `p05.hdf` içindeki 439 HDF5 yolunun taranması, `Maximum Water Surface` veri setinin ve öznitelik yapısının bulunması | Kod çalıştırılarak; şekiller, birimler ve değer aralıkları basıldı |
 | Veri keşfi | `A_A_B_INPINAR.prj`, plan dosyaları, `.rasmap`, `merge.Clone.vrt/hdf` içeriğinin çözülmesi | Dosyalar okundu, yedi planın başlıkları tek tek listelendi |
-| Analiz | Bina kot değişikliği (69 poligon, +20 m) ve kuru hücre etkilerinin bulunması | Her iki etki de sayısal olarak ölçüldü (ortalama derinlik 3.37 m → 0.13 m; artık 54 → 0 piksel) |
+| Analiz | Bina kot değişikliği (69 poligon, +20 m) ve kuru hücre etkilerinin bulunması | İki etki 2 × 2 çarpım tablosuyla ayrı ayrı ölçüldü; ikisi de kapalıyken maksimum derinlik 20.060 m, ikisi de açıkken 1.579 m (README, "Derinliği nasıl hesaplıyorum") |
 | Kütüphane | `ras-commander` API imzalarının çıkarılması | Paket kuruldu, `inspect.signature` ile gerçek imzalar okundu — belgeden veya hatırdan yazılmadı |
 | Kod | Tüm Python modüllerinin yazılması | Uçtan uca gerçek veri üzerinde çalıştırıldı |
-| Test | 44 testin ve sentetik veri üreticilerinin yazılması | `pytest` ile çalıştırıldı |
+| Test | 91 testin ve sentetik veri üreticilerinin yazılması | `pytest` ile çalıştırıldı |
 | Teşhis | Windows'ta HEC-RAS'ın düşme nedeninin bulunması | Proje sistematik olarak denetlendi (`tools/audit_project.py`); yedi planın beşinin yüklenemediği dosya dosya gösterildi |
+| Analiz | Referans haritayla uyuşmama nedeninin bulunması | Projenin kendi `.rasmap` dosyasında `<RenderMode>sloping</RenderMode>` bulundu; iki yüzey modeli de kodlanıp referansa karşı ölçüldü (`tools/compare_reference.py`) |
 | Belge | README ve bu dosya | İçerdiği her sayı çalıştırma çıktısından alındı |
 
 ## Uygulanan kurallar

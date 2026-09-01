@@ -52,11 +52,11 @@ görürseniz Python sürümü uyumsuzdur. Komut İstemi (cmd) kullanın; PowerSh
 ## 1. Testler (HEC-RAS'a dokunmadan)
 
 ```bat
-set Q50_CASE_DATA=C:\atinen\CASE_DATA
+set Q50_CASE_DATA=C:\atinen\CASE DATA 2
 python -m pytest tests -q
 ```
 
-**Beklenen:** `80 passed`. `CASE_DATA` yoksa gerçek veri testleri atlanır.
+**Beklenen:** `91 passed`. `CASE_DATA` yoksa gerçek veri testleri atlanır.
 `No module named pytest` derse 0. adımdaki `requirements-dev.txt` satırı
 atlanmıştır.
 
@@ -68,7 +68,7 @@ Projede hazır duran sonuçlardan haritayı üretir; okuma-hesap-yazma zincirini
 uçtan uca sınar.
 
 ```bat
-python main.py --project C:\atinen\CASE_DATA --use-existing-results --output OUTPUT\q50_ref.tif
+python main.py --project "C:\atinen\CASE DATA 2" --use-existing-results --output OUTPUT\q50_ref.tif
 ```
 
 **Beklenen** (macOS ve Windows 11'de birebir aynı çıktı):
@@ -76,13 +76,17 @@ python main.py --project C:\atinen\CASE_DATA --use-existing-results --output OUT
 | | |
 | --- | --- |
 | Seçilen plan | `p05` |
+| Render modu | `sloping` (A_A_B_INPINAR.rasmap dosyasından okunur) |
 | Izgara | 4788 × 2756 @ 0.1 m |
-| Islak hücre | 4165 / 5470 |
-| Islak piksel | 413 858 |
-| Maksimum derinlik | 1.625 m |
-| Ortalama derinlik | 0.130 m |
+| Islak hücre | 2918 / 5470 |
+| Islak piksel | 334 854 |
+| Maksimum derinlik | 1.579 m |
+| Ortalama derinlik | 0.125 m |
 | Doğrulama | 8 kontrolün 8'i `ok` |
-| Bütünlük | `source unchanged (176 files, fast check)` |
+| Bütünlük | `source unchanged (182 files, fast check)` |
+
+Sayılar `CASE DATA 2` (1 Eylül 2026'da gelen düzeltilmiş veri) içindir. Eski
+`CASE_DATA` ile ıslak hücre ve piksel sayıları farklı çıkar.
 
 Bu adımda ayrıca teslim edilen projenin kusurları not olarak listelenir
 (`note: p03: flow file u01 is not declared...`). Bu beklenen davranış; hazır
@@ -92,9 +96,31 @@ sonuç okunurken onarım yapılmaz.
 
 ## 3. Asıl sınav: HEC-RAS'ı çalıştır
 
+### Önce bunu deneyin: kanıt toplayan betik
+
+```bat
+python tools\windows_verify.py ^
+  --project "C:\atinen\CASE DATA 2" ^
+  --ras-dir "C:\Program Files (x86)\HEC\HEC-RAS\6.6" ^
+  --reference "C:\atinen\CASE DATA 2\AKA_AFY_BAY_INPINAR_1\3_Pafta\6_derinlik\q50_d.tif"
+```
+
+Altı adayı sırayla dener, ilk başarılıda durur ve her denemenin ardından
+`evidence\` altına uygulamanın çıktısını, HEC-RAS'ın plan HDF'i içindeki hesap
+günlüğünü ve `.bco` kaydını yazar. Başarısız bir koşu da kanıt bırakır.
+
+**İlk aday neden ilk:** `A_A_B_INPINAR.p05` dosyası `UNET Use Existing IB
+Tables=-1` diyor, yani yapı (internal boundary) tablolarını geometriden hazır
+oku. Teslim edilen `g03.hdf` içinde `Geometry/Structures/Property Tables` yok.
+Çöküşün olduğu rutinin adı `READ_UN_HDF_STRUC`, yani tam olarak o tabloları
+okuyan rutin. Bugüne kadarki yedi deneme bu bayrağa hiç dokunmadı; yeni
+`--ib-tables rebuild` onu kapatıyor.
+
+### Tek adımı elle çalıştırmak isterseniz
+
 ```bat
 python main.py ^
-  --project C:\atinen\CASE_DATA ^
+  --project "C:\atinen\CASE DATA 2" ^
   --ras-dir "C:\Program Files (x86)\HEC\HEC-RAS\6.6" ^
   --output OUTPUT\q50_depth.tif
 ```
@@ -116,7 +142,7 @@ hesaplar. **Beklenen akış:**
       A_A_B_INPINAR.prj now declares only p05, g03, u05 (16 declarations removed)
 [4/6] hec-ras     computing p05 via cmdr
       RasCmdr.compute_plan -> success=True, NN.N s
-[5/6] ...  -> 413858 piksel, max 1.625 m   (2. adımla aynı olmalı)
+[5/6] ...  -> 334854 piksel, max 1.579 m   (2. adımla aynı olmalı)
 ```
 
 HEC-RAS penceresi açılıp kapanabilir, normal.
@@ -138,7 +164,7 @@ Sırayla denenecekler:
 1. **Hidrografı da gömerek deneyin** — sınır koşulunu DSS'ten okumayı tamamen
    devre dışı bırakır:
    ```bat
-   python main.py --project C:\atinen\CASE_DATA ^
+   python main.py --project "C:\atinen\CASE DATA 2" ^
      --ras-dir "C:\Program Files (x86)\HEC\HEC-RAS\6.6" ^
      --inflow inline --output OUTPUT\q50_depth.tif
    ```
@@ -149,7 +175,7 @@ Sırayla denenecekler:
    (`RAS66.HECRASController`), GUI'nin kullandığı arayüz.
 3. Hazırlanmış kopyayı elle açıp bakın:
    ```bat
-   python main.py --project C:\atinen\CASE_DATA --prepare-only
+   python main.py --project "C:\atinen\CASE DATA 2" --prepare-only
    ```
    sonra HEC-RAS'ta `workspace\A_A_B_INPINAR_Q50\A_A_B_INPINAR.prj` — bu proje
    yalnız Q50'yi bildirir, diğer bozuk planlar çıkarılmıştır. Plan listesinde
@@ -162,7 +188,7 @@ Sırayla denenecekler:
 ## 4. Çıktıyı gözle doğrula
 
 ```bat
-python tools\preview.py OUTPUT\q50_depth.tif --terrain C:\atinen\CASE_DATA\AKA_AFY_BAY_INPINAR_1\1_Modeller\merge.Clone.vrt
+python tools\preview.py OUTPUT\q50_depth.tif --terrain "C:\atinen\CASE DATA 2\AKA_AFY_BAY_INPINAR_1\1_Modeller\merge.Clone.vrt"
 gdalinfo OUTPUT\q50_depth.tif
 ```
 
@@ -177,7 +203,7 @@ gdalinfo OUTPUT\q50_depth.tif
 ## 5. Orijinal veri gerçekten bozulmadı mı
 
 ```bat
-python main.py --project C:\atinen\CASE_DATA --ras-dir "C:\Program Files (x86)\HEC\HEC-RAS\6.6" --integrity full
+python main.py --project "C:\atinen\CASE DATA 2" --ras-dir "C:\Program Files (x86)\HEC\HEC-RAS\6.6" --integrity full
 ```
 
 **Beklenen:** `integrity   source unchanged (176 files, full check)` — her

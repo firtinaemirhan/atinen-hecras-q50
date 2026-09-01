@@ -441,8 +441,7 @@ içindeki özet çıktı `Maximum Water Surface`, yani hücre başına maksimum 
 **kotu** (2 × 5667: WSEL ve zaman). Derinlik türetilir:
 
 ```
-derinlik(piksel) = pikseli kaplayan hücrenin maksimum su kotu
-                 − o pikseldeki arazi kotu
+derinlik(piksel) = pikselin üzerindeki su kotu − o pikseldeki arazi kotu
 ```
 
 Izgara hücre çözünürlüğünde değil **arazi çözünürlüğünde** kurulur (bu veri
@@ -450,7 +449,40 @@ setinde 0.1 m), çünkü bir HEC-RAS 2D hücresi düz değildir; içinde alt-ız
 topografya taşır. Pencere arazi rasterinin kendi piksel ızgarasına hizalanır,
 böylece arazi yeniden örneklenmeden okunur.
 
-Üç ayrıntı bu haritayı doğru yapıyor:
+**Pikselin üzerindeki su kotu ne?** Bu bir tercih değil, projenin kendi
+ayarı. `A_A_B_INPINAR.rasmap` dosyası şunu yazıyor:
+
+```
+<RenderMode>sloping</RenderMode>
+```
+
+RASMapper haritalarını **eğimli** su yüzeyiyle çiziyor: hücre içinde tek bir
+düz kot değil, hücreden hücreye sürekli bir yüzey. Uygulama modu bu dosyadan
+okuyor (`--render-mode auto`, varsayılan) ve aynı yüzeyi kuruyor:
+
+1. Her köşede (face point) su kotu, o köşede buluşan **ıslak** hücrelerin
+   alan ağırlıklı ortalaması olarak türetilir.
+2. Her ıslak hücre, merkezinden geçen bir üçgen yelpazesine bölünür (kenar
+   başına bir üçgen).
+3. Yüzey bu üçgenler üzerinde doğrusal enterpole edilir.
+
+Fark ölçülebilir. Q50 referans haritasına (`3_Pafta/6_derinlik/q50_d.tif`)
+karşı, aynı ızgarada:
+
+| Yüzey | Ortak ıslak alan (IoU) | Ortalama mutlak fark | Sapma | Maksimum |
+| --- | --- | --- | --- | --- |
+| Düz (hücre başına sabit) | %56.1 | 0.0390 m | +0.0133 m | 1.625 m |
+| Eğimli (`sloping`) | **%72.8** | **0.0187 m** | **−0.0008 m** | 1.572 m |
+| Referansın kendisi | — | — | — | 1.5705 m |
+
+Ölçüm: `python tools/compare_reference.py OUTPUT/q50_depth.tif <referans>`.
+
+Neden Delaunay değil de yelpaze: ıslak hücreler kopuk kümeler halinde ve
+merkezlerinin Delaunay üçgenlemesi aradaki boşlukları köprülüyor, yüksek
+araziye onlarca metre su bırakıyor. Yelpaze mesh'in kendi topolojisini
+kullandığı için bir üçgen ait olduğu hücrenin dışına hiç taşmıyor.
+
+Dört ayrıntı bu haritayı doğru yapıyor:
 
 **1. Hücre çokgenleri.** `Cells FacePoint Indexes` bir hücrenin köşelerini
 verir ama halka sırasında vermez. Köşeler hücre merkezine göre açıya
@@ -462,16 +494,39 @@ kuruludur. RASMapper arazi katmanı bir çifttir: `merge.Clone.vrt` kot
 ızgarasını, `merge.Clone.hdf` ise üzerine çizilen kot değişikliklerini tutar —
 burada **69 bina için +20 m**. Bu değişiklikler .vrt'ye gömülü değildir,
 RASMapper onları anlık uygular. Yalnızca .vrt okunursa binaların içinde zemin
-kotu çıkar ve harita binaların üstüne metrelerce su boyar: uygulanmadan önce
-ortalama derinlik **3.37 m**, uygulandıktan sonra **0.13 m** (hücre bazlı
-ortalama 0.117 m ile tutarlı).
+kotu çıkar ve harita binaların üstüne su boyar.
 
 **3. Islanmamış hücreler.** Hiç ıslanmayan bir hücre için HEC-RAS maksimum su
 kotunu hücrenin kendi taban kotu olarak raporlar — bu su değildir. Tabanı bir
 bina üzerinde oturan kuru hücreler, binanın kaplamadığı şeritte 20 m derinlik
 üretir. Bu yüzden yalnızca `maksimum su kotu > hücre taban kotu` olan hücreler
-boyanır. Bu kural olmadan artık 36–54 piksel 2 m'nin üzerinde, en fazlası
-19.96 m çıkar; kuralla birlikte en derin piksel **1.625 m**'dir.
+boyanır.
+
+**4. Kuru hücre toleransı.** Yukarıdaki karşılaştırma yalnızca float32
+duyarlığında geçerli. `p05.hdf` içinde **1247 hücre** kendi tabanından tam
+0.0001 m yüksek geliyor — bu su değil, yuvarlama. Kulağa önemsiz geliyor ama
+değil: o hücreler +20 m bina kotundaki hücreler ve eğimli yüzeye girdiklerinde
+paylaştıkları köşenin su kotunu 20 m yukarı çekiyorlar. Varsayılan tolerans
+**1 mm** (`--wet-tolerance`): gerçek her sonucu korumaya yetecek kadar küçük,
+yuvarlamayı temizleyecek kadar büyük.
+
+İki düzeltme ayrı belirtileri iyileştiriyor, bu yüzden 2 × 2 ölçüldü
+(eğimli yüzey, `p05.hdf`, tam ızgara):
+
+| Bina düzeltmesi | Kuru hücre toleransı | Islak piksel | Maksimum | Ortalama |
+| --- | --- | --- | --- | --- |
+| açık | açık (1 mm) | 334 854 | **1.579 m** | **0.125 m** |
+| kapalı | açık (1 mm) | 340 779 | 1.579 m | 0.125 m |
+| açık | kapalı | 352 091 | 13.407 m | 0.198 m |
+| kapalı | kapalı | 419 060 | 20.060 m | 2.059 m |
+
+Not: eğimli yüzeye geçince **baskın düzeltme yer değiştirdi**. Düz yüzeyde
+haritayı kurtaran şey bina kot düzeltmesiydi; eğimli yüzeyde kuru hücre
+toleransı zaten o hücreleri dışarıda bıraktığı için bina düzeltmesinin katkısı
+5925 piksele iniyor. Düzeltme yine de yerinde duruyor: gerçekten ıslak olup
+içinde bina bulunan hücrelerde arazi kotu doğru olmak zorunda.
+
+Ölçüm betiği bu tabloyu üretir; sayılar elle yazılmadı.
 
 **Koordinat sistemi** `p05.hdf` kök `Projection` özniteliğindeki WKT'den
 okunur. `EPSG:32636` elle yazılmamıştır — ve yazılmamalıydı: bu izdüşüm
@@ -509,7 +564,7 @@ gdalinfo OUTPUT/q50_depth.tif        # veya: rio info OUTPUT/q50_depth.tif
 
 Son olarak çıktı **açılıp bakılmıştır** — `tools/preview.py` haritayı ve
 derinlik dağılımını çizer, yukarıdaki görüntü odur. Su, arazideki dere
-koridorunu takip ediyor; 4.139 m² ıslak alan, medyan 0.10 m, maksimum 1.625 m.
+koridorunu takip ediyor; 3.349 m² ıslak alan, maksimum 1.579 m.
 
 ## Hata yönetimi
 
@@ -541,7 +596,7 @@ pip install -r requirements-dev.txt
 python -m pytest tests -q
 ```
 
-80 test. Gerçek veriye ihtiyaç duyanlar (`tests/test_real_data.py`) veri yoksa
+91 test. Gerçek veriye ihtiyaç duyanlar (`tests/test_real_data.py`) veri yoksa
 otomatik atlanır; veri varsayılan olarak `~/Desktop/CASE_DATA` altında aranır,
 `Q50_CASE_DATA` ortam değişkeniyle değiştirilebilir. Geri kalanı sentetik
 verilerle çalışır: `tests/conftest.py` tuzağı minyatür halde yeniden kurar
@@ -587,9 +642,13 @@ En önemli iki test, düzeltilen iki hatayı sabitler:
 - **Sadece `Add` tipi arazi kot değişikliği destekleniyor.** Veri setinde
   yalnızca bu tip var. Başka bir tiple karşılaşılırsa uygulama sessizce yanlış
   harita üretmek yerine anlaşılır bir hatayla durur.
-- **Su yüzeyi hücre içinde sabit kabul edilir.** Modelin çözdüğü büyüklük
-  budur. Sonuç, taşkın kenarında pürüzsüz değil tırtıklı bir sınır verir;
-  RASMapper'ın eğimli su yüzeyi çizimine göre daha parçalı görünür.
+- **Referans harita bit düzeyinde kopyalanamaz.** Teslim edilen
+  `q50_d.tif` bir noktada yeniden örneklenmiş: ızgarası arazinin piksel
+  sınırlarına oturmuyor, başlangıcı yaklaşık yarım piksel kaymış. Onu üreten
+  ham RASMapper çıktısı pakette yok. `--grid-like` ile çıktı referansın tam
+  pikselleri üzerine yazılabiliyor; kalan fark yöntemin değil, o ara işlemin
+  farkı. Ölçülen örtüşme %72.8, ortak piksellerde ortalama fark 1.9 cm ve
+  sapma sıfıra yakın (−0.0008 m).
 - **Teslim edilen proje beş noktada tutarsız** ve olduğu gibi açılamıyor.
   Uygulama çalışma kopyasında onarıyor ve ne yaptığını yazıyor, ama asıl
   düzeltilmesi gereken yer proje dosyasının kendisi.
@@ -609,21 +668,25 @@ En önemli iki test, düzeltilen iki hatayı sabitler:
   Referanstaki pürüzsüz şerit su değil, projenin 1D nehir geometrisi;
   taşkın lekeleri üretilen haritayla aynı konumda.
 
-### Denenip vazgeçilen bir yüzey yöntemi
+### Bir kez yanlış yapılan yüzey yöntemi
 
-Haritanın tırtıklı görünümünü yumuşatmak için ıslak hücre merkezleri arasında
-doğrusal enterpolasyonla eğimli bir su yüzeyi kurmayı denedim
-(`scipy.interpolate.LinearNDInterpolator`). Sonuç fiziksel olarak imkânsızdı:
-maksimum derinlik **20.4 m**, 99. yüzdelik **11.4 m** (doğrusu 1.6 m).
+İlk sürüm su yüzeyini hücre içinde sabit kabul ediyordu ve bu, referans
+haritayla uyuşmamanın asıl sebebiydi. Kararın gerekçesi de yanlıştı.
 
-Sebebi şu: ıslak hücreler kopuk kümeler halinde; Delaunay üçgenlerinin bir
-kısmı vadinin bir yamacından diğerine uzanıyor ve aradaki yüksek araziye
-onlarca metre su kotu atıyor. Islak hücre çokgenleriyle kırpmak da yetmiyor,
-çünkü hatalı değer ıslak hücrenin kendi içinde üretiliyor.
+Eğimli yüzey bir kez denenmiş, ıslak hücre merkezleri arasında
+`scipy.interpolate.LinearNDInterpolator` ile kurulmuş ve sonuç fiziksel olarak
+imkânsız çıkmıştı: maksimum derinlik 20.4 m. Teşhis doğruydu — Delaunay
+üçgenlerinin bir kısmı vadinin bir yamacından diğerine uzanıyor — ama çıkarılan
+sonuç yanlıştı. Sorun eğimli yüzeyde değil, Delaunay'de.
 
-Yanlış çalışan bir seçeneği teslim etmektense kaldırdım. Doğru yolu
-RASMapper'ın yaptığı gibi hücre yüzlerindeki su kotlarından yüz yüze eğimli
-yüzey kurmaktır; bu, mevcut süre içinde doğrulanabilir biçimde yapılamadı.
+Doğrusu mesh'in kendi topolojisini kullanmak: her hücreyi merkezinden geçen bir
+üçgen yelpazesine bölmek. O zaman bir üçgen ait olduğu hücrenin dışına hiç
+taşamıyor. Bunun üstüne kuru hücre toleransı gelince (yukarıdaki 4. madde)
+maksimum derinlik 1.572 m'ye oturuyor.
+
+Kayıt için: o zamanki README "doğru yol RASMapper'ın yaptığı gibi eğimli yüzey
+kurmaktır, bu mevcut sürede doğrulanabilir biçimde yapılamadı" diyordu. Teşhis
+yerindeydi, iş yarım kalmıştı.
 
 ## Yapay zekâ kullanımı
 
