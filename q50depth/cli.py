@@ -20,6 +20,7 @@ from . import (
     raster,
     references,
     results,
+    surface,
     terrain,
     verify,
     workspace,
@@ -170,7 +171,37 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         default=0.0,
         metavar="METRES",
-        help="Depths at or below this become nodata (default: 0.0, i.e. keep any water).",
+        help="Depths at or below this become nodata (default: 0.0, i.e. keep any water). "
+        "The delivered reference maps were cut at 0.01 m.",
+    )
+    parser.add_argument(
+        "--grid-like",
+        type=Path,
+        metavar="RASTER",
+        help="Write the output on this raster's exact pixel grid instead of "
+        "the terrain's. Use it to put the result on the same pixels as a "
+        "reference map so the two can be compared cell for cell; the terrain "
+        "is resampled onto that grid with nearest neighbour.",
+    )
+    parser.add_argument(
+        "--render-mode",
+        choices=("auto", "sloping", "flat"),
+        default="auto",
+        help="Which water surface to draw. 'auto' (default) reads <RenderMode> "
+        "out of the project's own .rasmap file, so the map is built the way "
+        "the modeller configured RASMapper; it falls back to 'sloping' when "
+        "the file says nothing. 'sloping' interpolates a continuous surface "
+        "between cells, 'flat' paints one level per cell.",
+    )
+    parser.add_argument(
+        "--wet-tolerance",
+        type=float,
+        default=depth.DEFAULT_WET_TOLERANCE,
+        metavar="METRES",
+        help="A cell counts as wet only this far above its own bed (default: "
+        f"{depth.DEFAULT_WET_TOLERANCE}). HEC-RAS reports a never-wet cell at its own "
+        "bed elevation, but only to within float32 rounding; without a "
+        "tolerance those cells join the water surface.",
     )
     parser.add_argument(
         "--integrity",
@@ -452,11 +483,36 @@ def run(argv: list[str] | None = None) -> int:
              + (f" + {len(model_terrain.modifications)} elevation modifications"
                 if model_terrain.modifications else " (no modifications)"))
 
+    render_mode = args.render_mode
+    if render_mode == "auto":
+        rasmap_path = working_prj.with_suffix(".rasmap")
+        from_project = surface.read_render_mode(rasmap_path)
+        render_mode = from_project or "sloping"
+        log.info(
+            f"      render mode '{render_mode}' "
+            + (f"read from {rasmap_path.name}" if from_project
+               else f"({rasmap_path.name} names no mode this build knows; using the default)")
+        )
+    else:
+        log.info(f"      render mode '{render_mode}' (given on the command line)")
+
+    output_grid = None
+    if args.grid_like is not None:
+        if not args.grid_like.is_file():
+            raise UsageError(f"--grid-like: no such raster: {args.grid_like}")
+        output_grid = depth.grid_of(args.grid_like)
+        log.info(f"      grid taken from {args.grid_like.name} "
+                 f"({output_grid.width} x {output_grid.height} @ "
+                 f"{output_grid.resolution:g} m)")
+
     depth_result = depth.build(
         plan_results,
         model_terrain,
         resolution=args.resolution,
         min_depth=args.min_depth,
+        wet_tolerance=args.wet_tolerance,
+        render_mode=render_mode,
+        grid=output_grid,
     )
     log.info(f"      grid {depth_result.grid.width} x {depth_result.grid.height} @ {depth_result.grid.resolution:g} m")
     log.info(f"      wet cells {depth_result.wet_cells}/{depth_result.total_cells}, wet pixels {depth_result.wet_pixels}")

@@ -74,6 +74,7 @@ def write_results_hdf(
     cell_min_elevation: np.ndarray,
     max_water_surface: np.ndarray,
     terrain_filename: str,
+    cell_surface_area: np.ndarray | None = None,
     mesh_name: str = "mesh",
     plan_title: str = "A_A_B_INPINAR_Q50",
     short_id: str = "Q50",
@@ -117,6 +118,10 @@ def write_results_hdf(
         mesh.create_dataset("Cells FacePoint Indexes", data=cell_face_points.astype("int32"))
         mesh.create_dataset("Cells Center Coordinate", data=cell_centers.astype("float64"))
         mesh.create_dataset("Cells Minimum Elevation", data=cell_min_elevation.astype("float32"))
+        if cell_surface_area is not None:
+            mesh.create_dataset(
+                "Cells Surface Area", data=cell_surface_area.astype("float32")
+            )
 
         summary = handle.create_group(f"{SUMMARY}/{mesh_name}")
         data = np.vstack(

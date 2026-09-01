@@ -4,11 +4,16 @@ HEC-RAS 2D results are stored per computation cell, but a cell is not flat:
 the model carries sub-grid terrain inside it.  A depth map is therefore built
 at terrain resolution, not cell resolution:
 
-    depth(pixel) = max water surface of the cell covering the pixel
-                 - terrain elevation at the pixel
+    depth(pixel) = water surface over the pixel - terrain elevation at the pixel
 
-which is how RASMapper renders a maximum-depth layer.  Pixels where the result
-is not positive are dry and become nodata.
+Pixels where the result is not positive are dry and become nodata.
+
+The water surface itself is built in :mod:`q50depth.surface`, which offers the
+two models RASMapper offers.  Which one to use is not a matter of taste: the
+project's ``.rasmap`` file records the mode its own maps were drawn with, and
+this data set says ``sloping``.  Drawing a flat surface per cell instead
+produces a visibly different map -- on the delivered Q50 reference it shares
+54.7% of its wet area, against 72.8% for the sloping surface.
 """
 
 from __future__ import annotations
@@ -20,8 +25,10 @@ import rasterio
 from rasterio.enums import Resampling
 from rasterio.features import rasterize
 from rasterio.transform import Affine
+from rasterio.warp import reproject
 from rasterio.windows import Window
 
+from . import surface as surface_model
 from .errors import TerrainError
 from .results import Mesh, PlanResults
 from .terrain import Terrain
@@ -54,6 +61,7 @@ class DepthResult:
     max_depth: float
     mean_depth: float
     max_water_surface: float
+    render_mode: str
 
 
 def mesh_bounds(meshes: tuple[Mesh, ...]) -> tuple[float, float, float, float]:
@@ -93,12 +101,47 @@ def _grid_at_resolution(bounds, resolution: float) -> Grid:
     return Grid(Affine(resolution, 0, left, 0, -resolution, top), width, height)
 
 
-def read_terrain(terrain: Terrain, bounds, resolution: float | None) -> tuple[np.ndarray, Grid]:
-    """Read terrain elevation over ``bounds`` and apply its modifications."""
+def grid_of(path) -> Grid:
+    """The pixel grid of an existing raster, to build an output on top of it.
+
+    Used by ``--grid-like``: the client's reference maps do not sit on the
+    terrain's own pixel boundaries -- they were resampled somewhere in map
+    production and their origin is about half a pixel off -- so a map built on
+    the terrain grid can never be compared to them cell for cell.  Reading
+    their grid back lets the output land on exactly the same pixels.
+    """
+    with rasterio.open(path) as source:
+        return Grid(source.transform, int(source.width), int(source.height))
+
+
+def read_terrain(
+    terrain: Terrain, bounds, resolution: float | None, grid: Grid | None = None
+) -> tuple[np.ndarray, Grid]:
+    """Read terrain elevation over ``bounds`` and apply its modifications.
+
+    ``grid`` overrides both ``bounds`` and ``resolution``: the terrain is then
+    resampled onto that grid instead of being read on its own pixels.
+    """
     with rasterio.open(terrain.raster_path) as source:
         # `or` would swallow a legitimate nodata of 0.0, so test for None.
         nodata = source.nodata if source.nodata is not None else -9999.0
-        if resolution is None or np.isclose(resolution, abs(source.transform.a)):
+        if grid is not None:
+            elevation = np.full(grid.shape, np.float32(nodata), dtype="float32")
+            reproject(
+                source=rasterio.band(source, 1),
+                destination=elevation,
+                src_transform=source.transform,
+                src_crs=source.crs,
+                src_nodata=nodata,
+                dst_transform=grid.transform,
+                dst_crs=source.crs,
+                dst_nodata=nodata,
+                # Nearest keeps every terrain value one the terrain actually
+                # holds. Interpolating ground elevations would invent a bed
+                # that HEC-RAS never computed against.
+                resampling=Resampling.nearest,
+            )
+        elif resolution is None or np.isclose(resolution, abs(source.transform.a)):
             grid, window = _grid_aligned_to(source, bounds)
             elevation = source.read(
                 1, window=window, boundless=True, fill_value=nodata
@@ -150,50 +193,15 @@ def read_terrain(terrain: Terrain, bounds, resolution: float | None) -> tuple[np
     return elevation, grid
 
 
-def _horizontal_surface(mesh: Mesh, selected: np.ndarray, grid: Grid) -> np.ndarray:
-    """Paint each wet cell with its own maximum water surface.
-
-    This is what the model actually solves: one water surface value per
-    computation cell. Sub-grid ground inside a cell that stands above that
-    value simply stays dry, which is why the flood edge looks ragged rather
-    than smooth.
-
-    Interpolating a sloping surface between cell centres instead was tried and
-    rejected; see "A surface method that was tried and dropped" in README.md.
-    """
-    shapes = list(_cell_polygons(mesh, selected))
-    if not shapes:
-        return np.full(grid.shape, np.nan, dtype="float32")
-    return rasterize(
-        shapes,
-        out_shape=grid.shape,
-        transform=grid.transform,
-        fill=np.nan,
-        dtype="float32",
-    )
-
-
-def _cell_polygons(mesh: Mesh, selected: np.ndarray):
-    """Yield (GeoJSON polygon, max water surface) for each selected cell.
-
-    ``Cells FacePoint Indexes`` lists a cell's corners but not in ring order,
-    so the corners are sorted by their angle around the cell centre.  HEC-RAS
-    2D cells are convex, which makes that ordering the polygon boundary.
-    """
-    face_points = mesh.face_point_xy
-    indexes = mesh.cell_face_points
-    valid = indexes >= 0
-    for cell in np.flatnonzero(selected):
-        corners = face_points[indexes[cell][valid[cell]]]
-        centre = mesh.cell_center_xy[cell]
-        order = np.argsort(
-            np.arctan2(corners[:, 1] - centre[1], corners[:, 0] - centre[0])
-        )
-        ring = corners[order]
-        ring = np.vstack([ring, ring[:1]])
-        yield {"type": "Polygon", "coordinates": [ring.tolist()]}, float(
-            mesh.max_water_surface[cell]
-        )
+#: A cell that never got wet is reported with a maximum water surface equal to
+#: its own minimum elevation -- but only to within float32.  On the delivered
+#: Q50 results 1247 cells come back 0.0001 m "deep", which is rounding, not
+#: water.  That matters far more than it sounds: those cells sit on the
+#: buildings raised 20 m by a terrain modification, and letting one into the
+#: sloping surface drags the water surface at a shared corner up with it,
+#: producing depths of 13.5 m next to it.  One millimetre is small enough to
+#: keep any real result and large enough to clear the rounding.
+DEFAULT_WET_TOLERANCE = 0.001
 
 
 def build(
@@ -201,11 +209,13 @@ def build(
     terrain: Terrain,
     resolution: float | None = None,
     min_depth: float = 0.0,
-    wet_tolerance: float = 0.0,
+    wet_tolerance: float = DEFAULT_WET_TOLERANCE,
+    render_mode: str = "sloping",
+    grid: Grid | None = None,
 ) -> DepthResult:
     """Compute the maximum-depth grid for every 2D area in the results."""
     bounds = mesh_bounds(results.meshes)
-    elevation, grid = read_terrain(terrain, bounds, resolution)
+    elevation, grid = read_terrain(terrain, bounds, resolution, grid)
 
     water_surface = np.full(grid.shape, np.nan, dtype="float32")
     wet_cells = total_cells = 0
@@ -215,7 +225,9 @@ def build(
         total_cells += int(mesh.real_cells.sum())
         if not selected.any():
             continue
-        water_surface = np.fmax(water_surface, _horizontal_surface(mesh, selected, grid))
+        water_surface = np.fmax(
+            water_surface, surface_model.build(mesh, selected, grid, render_mode)
+        )
 
     depth = water_surface - elevation
     depth[~np.isfinite(depth)] = np.nan
@@ -233,4 +245,5 @@ def build(
         max_depth=float(np.nanmax(depth)) if wet.any() else 0.0,
         mean_depth=float(np.nanmean(depth)) if wet.any() else 0.0,
         max_water_surface=float(np.nanmax(water_surface)) if wet.any() else float("nan"),
+        render_mode=render_mode,
     )

@@ -50,6 +50,11 @@ class Mesh:
     cell_min_elevation: np.ndarray  # (n_cells,) float32, NaN for ghost cells
     max_water_surface: np.ndarray  # (n_cells,) float32, metres
     max_ws_time_days: np.ndarray  # (n_cells,) float32, days from run start
+    # (n_cells,) float32 -- the wetted ground area inside the cell, which is
+    # not the area of the cell polygon: it follows the sub-grid terrain. Used
+    # to weight cells when the sloping water surface is averaged at a corner
+    # they share. Optional: HEC-RAS writes it, a hand-built mesh need not.
+    cell_surface_area: np.ndarray | None = None
 
     @property
     def cell_count(self) -> int:
@@ -145,6 +150,9 @@ def _read_mesh(handle: h5py.File, name: str) -> Mesh:
         max_water_surface=data[wsel_row],
         max_ws_time_days=(
             data[time_row] if time_row is not None else np.zeros_like(data[wsel_row])
+        ),
+        cell_surface_area=(
+            geom["Cells Surface Area"][...] if "Cells Surface Area" in geom else None
         ),
     )
 

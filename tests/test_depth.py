@@ -20,7 +20,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from q50depth import depth, results, terrain
+from q50depth import depth, results, surface, terrain
 from q50depth.errors import TerrainError
 from tests.synthetic import write_results_hdf, write_terrain_hdf, write_terrain_raster
 
@@ -92,16 +92,7 @@ def test_without_the_dry_cell_rule_the_building_would_flood(scene):
     mesh = loaded.meshes[0]
     everything = mesh.real_cells  # i.e. skip the wet_cells() filter
     elevation, grid = depth.read_terrain(model_terrain, (0.0, 0.0, 10.0, 10.0), None)
-    import rasterio.features
-
-    painted = rasterio.features.rasterize(
-        list(depth._cell_polygons(mesh, everything)),
-        out_shape=grid.shape,
-        transform=grid.transform,
-        fill=np.nan,
-        dtype="float32",
-    )
-    naive = painted - elevation
+    naive = surface.flat(mesh, everything, grid) - elevation
     assert np.nanmax(naive) == pytest.approx(20.0)
 
 
