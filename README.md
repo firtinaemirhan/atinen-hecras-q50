@@ -467,15 +467,34 @@ okuyor (`--render-mode auto`, varsayılan) ve aynı yüzeyi kuruyor:
 3. Yüzey bu üçgenler üzerinde doğrusal enterpole edilir.
 
 Fark ölçülebilir. Q50 referans haritasına (`3_Pafta/6_derinlik/q50_d.tif`)
-karşı, aynı ızgarada:
+karşı, referansın kendi ızgarasında ve aynı eşikle:
 
-| Yüzey | Ortak ıslak alan (IoU) | Ortalama mutlak fark | Sapma | Maksimum |
-| --- | --- | --- | --- | --- |
-| Düz (hücre başına sabit) | %56.1 | 0.0390 m | +0.0133 m | 1.625 m |
-| Eğimli (`sloping`) | **%72.8** | **0.0187 m** | **−0.0008 m** | 1.572 m |
-| Referansın kendisi | — | — | — | 1.5705 m |
+| Yüzey | Ortak ıslak alan (IoU) | Ortalama mutlak fark | Sapma | Ortalama derinlik | Maksimum |
+| --- | --- | --- | --- | --- | --- |
+| Düz (hücre başına sabit) | %56.42 | 0.0390 m | +0.0139 m | 0.1336 m | 1.6254 m |
+| Eğimli (`sloping`) | **%72.82** | **0.0187 m** | **−0.0008 m** | **0.1280 m** | **1.5724 m** |
+| Referansın kendisi | — | — | — | 0.1285 m | 1.5705 m |
 
-Ölçüm: `python tools/compare_reference.py OUTPUT/q50_depth.tif <referans>`.
+Ortak ıslak piksellerin %58.95'inde fark 1 cm'nin, %91.53'ünde 5 cm'nin
+altında. Ortalama derinlik referanstan 0.5 mm, maksimum 1.9 mm sapıyor.
+
+Tabloyu üreten komutlar (sayılar elle yazılmadı):
+
+```bash
+REF="<CASE DATA 2>/AKA_AFY_BAY_INPINAR_1/3_Pafta/6_derinlik/q50_d.tif"
+
+for mode in flat sloping; do
+  python main.py --project "<CASE DATA 2>" --use-existing-results \
+      --render-mode $mode --grid-like "$REF" --min-depth 0.005 \
+      --output OUTPUT/q50_$mode.tif
+  python tools/compare_reference.py OUTPUT/q50_$mode.tif "$REF"
+done
+```
+
+`--grid-like` çıktıyı referansın tam pikselleri üzerine yazar; `--min-depth
+0.005` referansın kendi tabanıdır (referanstaki en küçük değer 0.0050 m).
+İkisi de yalnızca karşılaştırma içindir — varsayılan koşu araziye hizalı
+ızgarada ve eşiksiz çalışır.
 
 Neden Delaunay değil de yelpaze: ıslak hücreler kopuk kümeler halinde ve
 merkezlerinin Delaunay üçgenlemesi aradaki boşlukları köprülüyor, yüksek
@@ -596,7 +615,7 @@ pip install -r requirements-dev.txt
 python -m pytest tests -q
 ```
 
-91 test. Gerçek veriye ihtiyaç duyanlar (`tests/test_real_data.py`) veri yoksa
+94 test. Gerçek veriye ihtiyaç duyanlar (`tests/test_real_data.py`) veri yoksa
 otomatik atlanır; veri varsayılan olarak `~/Desktop/CASE_DATA` altında aranır,
 `Q50_CASE_DATA` ortam değişkeniyle değiştirilebilir. Geri kalanı sentetik
 verilerle çalışır: `tests/conftest.py` tuzağı minyatür halde yeniden kurar

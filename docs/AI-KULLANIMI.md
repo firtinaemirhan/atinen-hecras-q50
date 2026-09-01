@@ -17,7 +17,7 @@ hangi araçların hangi amaçla kullanıldığının belirtilmesini istiyor. Bey
 | Analiz | Bina kot değişikliği (69 poligon, +20 m) ve kuru hücre etkilerinin bulunması | İki etki 2 × 2 çarpım tablosuyla ayrı ayrı ölçüldü; ikisi de kapalıyken maksimum derinlik 20.060 m, ikisi de açıkken 1.579 m (README, "Derinliği nasıl hesaplıyorum") |
 | Kütüphane | `ras-commander` API imzalarının çıkarılması | Paket kuruldu, `inspect.signature` ile gerçek imzalar okundu — belgeden veya hatırdan yazılmadı |
 | Kod | Tüm Python modüllerinin yazılması | Uçtan uca gerçek veri üzerinde çalıştırıldı |
-| Test | 91 testin ve sentetik veri üreticilerinin yazılması | `pytest` ile çalıştırıldı |
+| Test | 94 testin ve sentetik veri üreticilerinin yazılması | `pytest` ile çalıştırıldı |
 | Teşhis | Windows'ta HEC-RAS'ın düşme nedeninin bulunması | Proje sistematik olarak denetlendi (`tools/audit_project.py`); yedi planın beşinin yüklenemediği dosya dosya gösterildi |
 | Analiz | Referans haritayla uyuşmama nedeninin bulunması | Projenin kendi `.rasmap` dosyasında `<RenderMode>sloping</RenderMode>` bulundu; iki yüzey modeli de kodlanıp referansa karşı ölçüldü (`tools/compare_reference.py`) |
 | Belge | README ve bu dosya | İçerdiği her sayı çalıştırma çıktısından alındı |

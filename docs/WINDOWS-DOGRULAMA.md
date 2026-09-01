@@ -56,7 +56,7 @@ set Q50_CASE_DATA=C:\atinen\CASE DATA 2
 python -m pytest tests -q
 ```
 
-**Beklenen:** `91 passed`. `CASE_DATA` yoksa gerçek veri testleri atlanır.
+**Beklenen:** `94 passed`. `CASE_DATA` yoksa gerçek veri testleri atlanır.
 `No module named pytest` derse 0. adımdaki `requirements-dev.txt` satırı
 atlanmıştır.
 
