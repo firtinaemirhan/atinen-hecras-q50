@@ -615,7 +615,7 @@ pip install -r requirements-dev.txt
 python -m pytest tests -q
 ```
 
-94 test. Gerçek veriye ihtiyaç duyanlar (`tests/test_real_data.py`) veri yoksa
+94 test; veri yokken 87'si koşar, 7'si atlanır. Gerçek veriye ihtiyaç duyanlar (`tests/test_real_data.py`) veri yoksa
 otomatik atlanır; veri varsayılan olarak `~/Desktop/CASE_DATA` altında aranır,
 `Q50_CASE_DATA` ortam değişkeniyle değiştirilebilir. Geri kalanı sentetik
 verilerle çalışır: `tests/conftest.py` tuzağı minyatür halde yeniden kurar

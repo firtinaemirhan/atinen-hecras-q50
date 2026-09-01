@@ -32,8 +32,9 @@ Türkçe konuş. Kullanıcı Emirhan. Ton: kısa, direkt, dolgu cümlesi yok.
 | Windows sağlama listesi | `docs/WINDOWS-DOGRULAMA.md` |
 | Yöntemin tamamı | `README.md` |
 
-Testler: `python -m pytest -q` → **94 passed**. Gerçek veri testleri
-`Q50_CASE_DATA` yoksa atlanır.
+Testler: `python -m pytest -q` → **94 test**. Veri varken `94 passed`,
+veri yokken `87 passed, 7 skipped` — atlanan yediyi `tests/test_real_data.py`
+içindekiler oluşturur ve `Q50_CASE_DATA` gerektirir.
 
 ## Veri
 
