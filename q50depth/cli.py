@@ -626,13 +626,27 @@ def run(argv: list[str] | None = None) -> int:
     after = workspace.manifest(source_folder, args.integrity)
     report = workspace.compare(before, after, args.integrity)
     log.info(f"      integrity   {report.summary()}")
-    if not report.ok:
-        log.warning("      the delivered data was modified -- this must not happen")
 
     log.info("")
     log.info(f"done in {time.monotonic() - started:.1f} s. Log: {log_path}")
     if not args.use_existing_results and not args.keep_workspace:
         log.info(f"The working copy in {working_folder} can be deleted.")
+
+    if not report.ok:
+        # Not a warning. The whole design rests on the delivered data being
+        # read-only, every number in the report is measured against it, and on
+        # 2026-09-02 four files in it were altered on the Windows machine
+        # without anyone noticing for hours -- because these runs had passed
+        # --integrity off. A run that changed the client's data has not
+        # succeeded, whatever else it produced.
+        for name in (*report.changed, *report.added, *report.removed):
+            log.error(f"      changed in the delivered data: {name}")
+        raise Q50Error(
+            "The delivered data was modified during this run.",
+            hint="It must be read-only. Restore it from a known-good copy, "
+            "verify the checksums, and find what wrote to it before running "
+            "again. The working copy is where changes belong.",
+        )
     return 0
 
 

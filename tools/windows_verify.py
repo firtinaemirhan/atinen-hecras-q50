@@ -16,6 +16,8 @@ Every attempt leaves behind, under ``--evidence``:
     NN-<name>.bco.txt        the .bco run log, when HEC-RAS wrote one
     NN-<name>.geometry-before.txt   what the geometry declared going in
     NN-<name>.geometry-after.txt    and what it declared coming out
+    NN-<name>.delivered-before.txt  checksums of the delivered data, which
+    NN-<name>.delivered-after.txt   must be identical on both sides
 
 That is the point of the script.  A run that fails and explains why is worth
 more than one that succeeds and cannot be shown.
@@ -217,6 +219,45 @@ def _geometry_state(path: Path) -> str:
     return "\n".join(lines)
 
 
+#: The delivered data is supposed to be read-only, and on 2026-09-02 it was not:
+#: four files under it were rewritten in two separate events six hours apart,
+#: and neither was noticed until a checksum happened to be taken by hand. So the
+#: checksums are taken every time, on both sides of every attempt. This catches
+#: what the in-run integrity check cannot -- something writing between runs.
+def _delivered_fingerprint(project: Path) -> str:
+    import hashlib  # noqa: PLC0415
+
+    watched = sorted(
+        path
+        for pattern in ("*.g0*.hdf", "*.rasmap", "*.prj", "*.p0*")
+        for path in project.rglob(pattern)
+        if path.is_file() and path.suffix.lower() != ".bak"
+    )
+    if not watched:
+        return "(no geometry, project or plan files found under the delivered folder)"
+    lines = []
+    for path in watched:
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        stat = path.stat()
+        when = datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds")
+        lines.append(
+            f"{digest}  {stat.st_size:>10d}  {when}  {path.relative_to(project)}"
+        )
+    return "\n".join(lines)
+
+
+def _write_delivered_fingerprint(
+    project: Path, evidence: Path, stem: str, when: str
+) -> None:
+    (evidence / f"{stem}.delivered-{when}.txt").write_text(
+        f"# checksums of the delivered data {when} this attempt\n"
+        "# it must be byte for byte identical on both sides\n\n"
+        + _delivered_fingerprint(project)
+        + "\n",
+        encoding="utf-8",
+    )
+
+
 def _write_geometry_state(workspace: Path, evidence: Path, stem: str, when: str) -> None:
     folders = [p for p in workspace.glob("*") if p.is_dir()] or [workspace]
     blocks = [
@@ -381,13 +422,18 @@ def main(argv: list[str] | None = None) -> int:
             "--workspace", str(args.workspace),
             "--overwrite-workspace",
             "--output", str(args.output),
-            "--integrity", "off",
+            # Not "off". These runs had it off, which is why four files in the
+            # delivered data could be altered on 2026-09-02 and go unnoticed
+            # for six hours. A fast check is size and timestamp per file and
+            # costs a second or two.
+            "--integrity", "fast",
             *attempt.arguments,
         ]
         print("  " + " ".join(f'"{c}"' if " " in c else c for c in command))
         # Anything older than this instant belongs to an earlier run, or to the
         # client, and is not this attempt's evidence.
         started_at = time.time()
+        _write_delivered_fingerprint(args.project, args.evidence, stem, "before")
         if args.workspace.exists():
             _write_geometry_state(args.workspace, args.evidence, stem, "before")
         try:
@@ -402,8 +448,20 @@ def main(argv: list[str] | None = None) -> int:
 
         (args.evidence / f"{stem}.log").write_text(transcript, encoding="utf-8")
         _collect(args.workspace, args.evidence, stem, started_at)
+        _write_delivered_fingerprint(args.project, args.evidence, stem, "after")
         if args.workspace.exists():
             _write_geometry_state(args.workspace, args.evidence, stem, "after")
+
+        before_text = (args.evidence / f"{stem}.delivered-before.txt").read_text("utf-8")
+        after_text = (args.evidence / f"{stem}.delivered-after.txt").read_text("utf-8")
+        if before_text != after_text:
+            print()
+            print("  THE DELIVERED DATA CHANGED DURING THIS ATTEMPT.")
+            print(f"  Compare {stem}.delivered-before.txt with .delivered-after.txt.")
+            print("  Stopping: it must be read-only, and running on data that is")
+            print("  being altered underneath us measures nothing.")
+            summary.append((attempt.name, "delivered data was modified"))
+            break
 
         tail = [line for line in transcript.splitlines() if line.strip()][-12:]
         for line in tail:
