@@ -223,6 +223,105 @@ def complete_with_hecras(
     return True, f"RasProcess.exe CompleteGeometry -> rc={finished.returncode} {output}".strip()
 
 
+def complete_with_ras_commander(
+    geometry_hdf: Path, rasmap: Path | None, ras_dir: Path
+) -> tuple[bool, str]:
+    """Run RAS Mapper's geometry-completion pipeline through ras-commander.
+
+    ``RasGeometryCompute.compute_geometry`` is the in-process equivalent of
+    RAS Mapper's *Compute Geometry* action.  Its documentation names exactly
+    the two things the delivered geometry is missing: "storage-area /
+    structure connectivity, and 2D property tables".
+
+    This is not the same thing as ``RasProcess.exe CompleteGeometry``, which
+    this module also offers: that one is a subprocess, and on this data set it
+    returned without writing either.  Both are kept so the two can be compared
+    rather than argued about.
+
+    ``overwrite=True`` matters.  The pipeline skips itself when edge lines
+    already exist, and this geometry has them -- so the default would do
+    nothing and report success.
+
+    Returns (ran, detail).  ``ran`` is False when ras-commander is not
+    installed, which is the normal case off Windows.
+    """
+    try:
+        import ras_commander as rc  # noqa: PLC0415
+    except ImportError as exc:
+        return False, f"ras-commander is not installed ({exc})"
+
+    try:
+        version = _resolve_version(ras_dir)
+        outcome = rc.RasGeometryCompute.compute_geometry(
+            geom_hdf_path=str(geometry_hdf),
+            rasmap_path=str(rasmap) if rasmap is not None else None,
+            overwrite=True,
+            backup=True,
+            hecras_version=version,
+        )
+    except Exception as exc:  # ras-commander raises its own types
+        return True, f"RasGeometryCompute.compute_geometry raised: {exc}"
+
+    parts = [
+        f"success={getattr(outcome, 'success', '?')}",
+        f"edge_lines={getattr(outcome, 'edge_lines_written', '?')}",
+        f"interp_surface={getattr(outcome, 'interpolation_surface_written', '?')}",
+        f"{getattr(outcome, 'elapsed_seconds', 0.0):.1f}s",
+    ]
+    if getattr(outcome, "error", None):
+        parts.append(f"error={outcome.error}")
+    return True, "RasGeometryCompute.compute_geometry -> " + ", ".join(parts)
+
+
+def validate_with_ras_commander(
+    geometry_hdf: Path, rasmap: Path | None, ras_dir: Path
+) -> tuple[bool, str]:
+    """Ask HEC-RAS what it thinks is wrong with this geometry.
+
+    RAS Mapper's *Validate Geometry*, run in-process.  Worth doing before a
+    run: a geometry the engine cannot start on usually has something to say
+    for itself, and reading it beats guessing.
+    """
+    try:
+        import ras_commander as rc  # noqa: PLC0415
+    except ImportError as exc:
+        return False, f"ras-commander is not installed ({exc})"
+
+    try:
+        report = rc.RasGeometryCompute.validate_geometry(
+            geom_hdf_path=str(geometry_hdf),
+            rasmap_path=str(rasmap) if rasmap is not None else None,
+            hecras_version=_resolve_version(ras_dir),
+        )
+    except Exception as exc:
+        return True, f"RasGeometryCompute.validate_geometry raised: {exc}"
+
+    if report is None or len(report) == 0:
+        return True, "HEC-RAS geometry validation: no problems reported"
+    lines = ["HEC-RAS geometry validation:"]
+    for _, row in report.iterrows():
+        lines.append(
+            f"    [{row.get('severity', '?')}] {row.get('layer', '')} "
+            f"{row.get('feature', '')}: {row.get('message', '')}".rstrip()
+        )
+    return True, "\n".join(lines[:40])
+
+
+def _resolve_version(ras_dir: Path) -> str:
+    """What ras-commander calls a ras_version.
+
+    It wants a version string ("6.6") or a full path to Ras.exe. Handing it the
+    installation folder resolves the executable to the bare name "Ras.exe",
+    which then depends on PATH -- and makes unrelated checks, such as the terms
+    and conditions test, report "version-unresolved" instead of an answer.
+    """
+    ras_dir = Path(ras_dir).expanduser()
+    if ras_dir.is_file() and ras_dir.suffix.lower() == ".exe":
+        return str(ras_dir)
+    executable = ras_dir / "Ras.exe"
+    return str(executable) if executable.is_file() else ras_dir.name
+
+
 def rebuild_from_results(geometry_hdf: Path, results_hdf: Path) -> Repair:
     """Replace ``geometry_hdf``'s Geometry group with the one in ``results_hdf``.
 

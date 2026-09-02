@@ -112,13 +112,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--geometry",
-        choices=("auto", "rasprocess", "harvest", "none"),
+        choices=("auto", "compute", "rasprocess", "harvest", "none"),
         default="auto",
-        help="How to supply the preprocessed geometry tables the delivery is "
-        "missing. 'auto' (default) asks HEC-RAS's own RasProcess.exe to write "
-        "them and, if that is unavailable, takes them from the complete "
-        "geometry inside the delivered results file. 'rasprocess' and "
-        "'harvest' force one of the two; 'none' leaves the geometry alone.",
+        help="How to supply the preprocessed geometry the delivery is missing "
+        "(GeomPreprocess, and which mesh cell each culvert barrel opens into). "
+        "'auto' (default) tries them in order of how well each is supported: "
+        "'compute' runs RAS Mapper's own geometry-completion pipeline through "
+        "ras-commander, which is documented to write structure connectivity "
+        "and 2D property tables; 'rasprocess' shells out to RasProcess.exe "
+        "CompleteGeometry; 'harvest' copies the geometry out of the delivered "
+        "results file. 'none' leaves the geometry alone.",
     )
     parser.add_argument(
         "--ib-tables",
@@ -362,10 +365,33 @@ def run(argv: list[str] | None = None) -> int:
                     )
 
                 authored_by_hecras = False
-                if args.geometry in ("auto", "rasprocess") and args.ras_dir is not None:
-                    rasmap = working_folder / f"{working_prj.stem}.rasmap"
+                rasmap = working_folder / f"{working_prj.stem}.rasmap"
+                rasmap = rasmap if rasmap.is_file() else None
+
+                if args.geometry in ("auto", "compute") and args.ras_dir is not None:
+                    ran, detail = geometry.validate_with_ras_commander(
+                        geometry_hdf, rasmap, args.ras_dir
+                    )
+                    if ran:
+                        for line in detail.splitlines():
+                            log.info(f"      {line}")
+                    ran, detail = geometry.complete_with_ras_commander(
+                        geometry_hdf, rasmap, args.ras_dir
+                    )
+                    log.info(f"      {detail}")
+                    if ran:
+                        absent = geometry.missing_tables(geometry_hdf)
+                        authored_by_hecras = not absent
+                        log.info(
+                            "      RAS Mapper's own pipeline wrote them"
+                            if authored_by_hecras
+                            else "      still missing: "
+                            + ", ".join(a.split("/", 1)[1] for a in absent)
+                        )
+
+                if absent and args.geometry in ("auto", "rasprocess") and args.ras_dir is not None:
                     ran, detail = geometry.complete_with_hecras(
-                        geometry_hdf, rasmap if rasmap.is_file() else None, args.ras_dir
+                        geometry_hdf, rasmap, args.ras_dir
                     )
                     log.info(f"      {detail}")
                     if ran:

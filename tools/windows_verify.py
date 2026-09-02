@@ -56,12 +56,22 @@ class Attempt:
 #: In order of how well each is supported by what the data actually shows.
 ATTEMPTS = [
     Attempt(
+        "compute-geometry",
+        "The delivered geometry is missing Geometry/GeomPreprocess and the "
+        "datasets saying which mesh cell each culvert barrel opens into. "
+        "RasGeometryCompute.compute_geometry is RAS Mapper's own Compute "
+        "Geometry action run in process, and its documentation names exactly "
+        "those two: storage-area / structure connectivity, and 2D property "
+        "tables. It also validates the geometry first and prints what HEC-RAS "
+        "itself objects to.",
+        ["--geometry", "compute", "--ib-tables", "rebuild"],
+    ),
+    Attempt(
         "ib-rebuild",
-        "The plan says 'UNET Use Existing IB Tables=-1' -- read the structure "
-        "tables from the geometry -- and the delivered geometry has no "
-        "Structures/Property Tables to read. READ_UN_HDF_STRUC is exactly the "
-        "routine that reads them. This switches the flag off and lets the "
-        "geometry preprocessor build them instead.",
+        "Tried on 2026-09-02 and it did not work: the preprocessor built the "
+        "2D flow area tables and the engine still died in READ_UN_HDF_STRUC. "
+        "Kept because it is cheap and because the geometry pipeline above may "
+        "change what this flag now means.",
         ["--geometry", "none", "--ib-tables", "rebuild"],
     ),
     Attempt(
