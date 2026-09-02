@@ -239,7 +239,13 @@ def _geometry_file(path: Path, *, complete: bool, culverts: bool = True) -> Path
         handle.attrs["File Type"] = np.bytes_(b"HEC-RAS Geometry")
         handle.attrs["Units System"] = np.bytes_(b"SI Units")
         handle.create_group("Geometry/Structures")
-        handle.create_dataset("Geometry/Structures/Attributes", data=np.arange(2))
+        handle.create_dataset(
+            "Geometry/Structures/Attributes",
+            data=np.array(
+                [(b"Weir/Gate/Culverts", 2 if culverts else 0)],
+                dtype=[("Mode", "S18"), ("Culvert Groups", "<i4")],
+            ),
+        )
         if culverts:
             handle.create_dataset(f"{BARRELS}/Attributes", data=np.arange(4))
         # Present in every real file that has it, and always empty: it is not
@@ -339,6 +345,47 @@ def test_graft_copies_only_what_is_missing(tmp_path: Path):
         assert "Geometry/2D Flow Areas/inpinar/Expensive" in handle, "graft destroyed work"
         assert handle.attrs["File Type"] == b"HEC-RAS Geometry"
         assert "Results" not in handle
+
+
+def test_a_declared_culvert_is_missing_even_when_its_whole_tree_is(tmp_path: Path):
+    """The model says whether it has culverts; the missing tables do not.
+
+    Asking whether ``.../Culvert Groups/Barrels`` exists is circular: the
+    delivered geometry has no Culvert Groups tree at all, so that test decided
+    the model had no culverts and stopped requiring the datasets it was missing.
+    The graft then copied one of three and the engine died one stage later, in
+    JOBINIT_Q2D_BC instead of READ_UN_HDF_STRUC.
+    """
+    from q50depth import geometry
+
+    path = _with_mesh(_geometry_file(tmp_path / "MODEL.g03.hdf", complete=True), CENTRES)
+    with h5py.File(path, "r+") as handle:
+        del handle["Geometry/Structures/Culvert Groups"]
+    assert geometry.missing_tables(path) == (
+        f"{BARRELS}/Upstream Cells",
+        f"{BARRELS}/Downstream Cells",
+    )
+
+
+def test_graft_restores_a_whole_missing_branch(tmp_path: Path):
+    """Creating empty parents and dropping in leaves loses the rest of the tree."""
+    from q50depth import geometry
+
+    incomplete = _with_mesh(
+        _geometry_file(tmp_path / "MODEL.g03.hdf", complete=True), CENTRES
+    )
+    with h5py.File(incomplete, "r+") as handle:
+        del handle["Geometry/Structures/Culvert Groups"]
+    results_hdf = _with_mesh(
+        _geometry_file(tmp_path / "MODEL.p05.hdf", complete=True), CENTRES
+    )
+
+    geometry.graft_missing(incomplete, results_hdf)
+
+    assert geometry.missing_tables(incomplete) == ()
+    with h5py.File(incomplete, "r") as handle:
+        # not just the two leaves: the attributes describing the barrels too
+        assert f"{BARRELS}/Attributes" in handle
 
 
 def test_graft_refuses_a_mesh_it_does_not_recognise(tmp_path: Path):

@@ -143,16 +143,38 @@ def align_terrain_timestamp(geometry_hdf: Path, project_folder: Path) -> str | N
     return recorded if touched else None
 
 
-def _required_for(handle: "h5py.File") -> tuple[str, ...]:
-    """The subset of :data:`REQUIRED` this particular model needs.
+def _declares_culverts(handle: "h5py.File") -> bool:
+    """Whether the model has culvert barrels at all, asked of the model.
 
-    A model with no culverts never has the barrel-to-cell datasets and is not
-    broken for lacking them, so they are only required where the barrels exist.
+    The first version asked whether ``.../Culvert Groups/Barrels`` was present.
+    That is circular: in the delivered geometry the whole ``Culvert Groups``
+    tree is missing, so the test concluded the model had no culverts and
+    stopped requiring the very datasets it lacks.  The graft then copied one of
+    the three and the run failed one stage later.
+
+    The model itself says so.  ``Geometry/Structures/Attributes`` carries a
+    ``Culvert Groups`` count per structure; the delivered geometry declares two
+    SA/2D connections in mode ``Weir/Gate/Culverts`` with culvert groups on
+    both, which is true whether or not the HDF holds the tables for them.
     """
+    attributes = handle.get("Geometry/Structures/Attributes")
+    if attributes is None:
+        return False
+    names = attributes.dtype.names or ()
+    if "Culvert Groups" in names:
+        return bool((attributes["Culvert Groups"][...] > 0).any())
+    # Older layouts do not carry the count; fall back to the mode text.
+    if "Mode" in names:
+        modes = attributes["Mode"][...]
+        return any(b"ulvert" in bytes(mode) for mode in modes)
+    return False
+
+
+def _required_for(handle: "h5py.File") -> tuple[str, ...]:
+    """The subset of :data:`REQUIRED` this particular model needs."""
+    culverts = _declares_culverts(handle)
     return tuple(
-        key
-        for key in REQUIRED
-        if not key.startswith(_BARRELS) or _BARRELS in handle
+        key for key in REQUIRED if not key.startswith(_BARRELS) or culverts
     )
 
 
@@ -398,14 +420,27 @@ def graft_missing(geometry_hdf: Path, results_hdf: Path) -> Repair:
                         "indexes would be wrong. Refusing to graft.",
                     )
 
+    copied: list[str] = []
     with h5py.File(results_hdf, "r") as source, h5py.File(geometry_hdf, "r+") as target:
         for key in available:
-            parent = key.rsplit("/", 1)[0]
-            target.require_group(parent)
             if key in target:
-                del target[key]
-            source.copy(source[key], target[parent], name=key.rsplit("/", 1)[1])
-    return Repair(geometry_hdf, results_hdf, available)
+                continue  # an earlier copy brought this one along with it
+            # The parent may be missing too. In the delivered geometry the whole
+            # "Culvert Groups" tree is absent, not just the two datasets under
+            # it, so creating empty parents and dropping in leaves would leave
+            # the barrels without the attributes that describe them. Copy the
+            # shallowest branch the target does not have instead.
+            parts = key.split("/")
+            depth = len(parts)
+            while depth > 1 and "/".join(parts[:depth - 1]) not in target:
+                depth -= 1
+            branch = "/".join(parts[:depth])
+            parent = "/".join(parts[:depth - 1])
+            if branch in target:
+                del target[branch]
+            source.copy(source[branch], target[parent], name=parts[depth - 1])
+            copied.append(branch)
+    return Repair(geometry_hdf, results_hdf, tuple(copied))
 
 
 def rebuild_from_results(geometry_hdf: Path, results_hdf: Path) -> Repair:
