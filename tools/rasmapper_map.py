@@ -64,15 +64,36 @@ def _check_signature(function) -> list[str]:
     return [name for name in REQUIRED_PARAMETERS if name not in accepted]
 
 
-def _newest_depth_raster(folder: Path) -> Path | None:
-    candidates = [
-        p
-        for p in folder.rglob("*.tif")
-        if "depth" in p.name.lower() or "depth" in p.parent.name.lower()
+def _produced_rasters(folder: Path) -> list[Path]:
+    """Every depth raster RAS Mapper wrote, mosaic first.
+
+    RAS Mapper does not write one file. This terrain is a stack of two tiles --
+    ``ent`` at 0.1 m over the channel and ``SET14_37_DTM`` at 0.5 m over the
+    rest -- so it writes one raster per tile plus a .vrt that mosaics them.
+
+    An earlier version of this tool picked whichever file had the newest
+    mtime. Both tiles are written in the same second, so that choice was
+    effectively random, and it landed on the 0.5 m tile: the tool then compared
+    a 0.5 m raster whose origin is 4.6 km away against the 0.1 m reference and
+    reported 48% agreement, which measured nothing at all.
+
+    So nothing is picked. Every raster is returned and every one is compared,
+    each under its own name.
+    """
+    rasters = [
+        path
+        for path in folder.rglob("*")
+        if path.suffix.lower() in (".tif", ".tiff", ".vrt")
+        and ("depth" in path.name.lower() or "depth" in path.parent.name.lower())
     ]
-    if not candidates:
-        candidates = list(folder.rglob("*.tif"))
-    return max(candidates, key=lambda p: p.stat().st_mtime) if candidates else None
+    if not rasters:
+        rasters = [
+            path
+            for path in folder.rglob("*")
+            if path.suffix.lower() in (".tif", ".tiff", ".vrt")
+        ]
+    # The mosaic first: it is the one that covers the whole model.
+    return sorted(rasters, key=lambda path: (path.suffix.lower() != ".vrt", path.name))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -183,29 +204,35 @@ def main(argv: list[str] | None = None) -> int:
     for key, value in summary.items():
         print(f"  {key}: {value}")
 
-    produced = _newest_depth_raster(args.out)
-    if produced is None:
+    produced = _produced_rasters(args.out)
+    if not produced:
         print(f"RAS Mapper reported success but no raster landed in {args.out}.")
         return 1
-    print(f"RAS Mapper wrote {produced}")
+    print(f"RAS Mapper wrote {len(produced)} raster(s):")
+    for path in produced:
+        print(f"  {path}  ({path.stat().st_size / 1e6:.1f} MB)")
 
     from tools.compare_reference import compare  # noqa: PLC0415
 
-    print()
-    print("=" * 72)
-    print("RAS Mapper's own map  vs  the map this project produced")
-    print("=" * 72)
-    if args.ours.is_file():
-        compare(args.ours, produced)
-    else:
-        print(f"  (skipped: {args.ours} does not exist yet)")
-
-    if args.reference is not None and args.reference.is_file():
+    if not args.ours.is_file():
         print()
-        print("=" * 72)
-        print("RAS Mapper's own map  vs  the client's delivered map")
-        print("=" * 72)
-        compare(produced, args.reference)
+        print(f"NOT COMPARED against this project's own map: {args.ours} does not "
+              "exist. Run main.py first, or pass --ours with the right path.")
+
+    for path in produced:
+        if args.ours.is_file():
+            print()
+            print("=" * 72)
+            print(f"RAS Mapper  {path.name}   vs   this project's map")
+            print("=" * 72)
+            compare(args.ours, path)
+
+        if args.reference is not None and args.reference.is_file():
+            print()
+            print("=" * 72)
+            print(f"RAS Mapper  {path.name}   vs   the client's delivered map")
+            print("=" * 72)
+            compare(path, args.reference)
 
     if not args.keep_workspace:
         shutil.rmtree(args.workspace, ignore_errors=True)

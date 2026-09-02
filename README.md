@@ -515,6 +515,31 @@ burada **69 bina için +20 m**. Bu değişiklikler .vrt'ye gömülü değildir,
 RASMapper onları anlık uygular. Yalnızca .vrt okunursa binaların içinde zemin
 kotu çıkar ve harita binaların üstüne su boyar.
 
+**2b. Arazi yığınında karo önceliği.** `merge.Clone.vrt` iki karodan oluşuyor:
+`ent` (kanal boyunca 0,1 m arazi ölçümü) ve `SET14_37_DTM` (0,5 m, tüm havza).
+VRT'de `SET14` ikinci sırada tanımlı, yani GDAL onu `ent`in üstüne çiziyor —
+kanal bölgesinde okunan kot **ince ölçüm değil, kaba DTM**. Ölçüldü: `ent`
+alanında VRT ile ince ölçüm piksellerin yalnızca %0,01'inde aynı, ortalama fark
+0,49 m.
+
+Bu bir tercih değil, ölçülmüş bir sonuç. Aynı su yüzeyiyle iki araziyi
+referansa karşı yarıştırdım:
+
+| Arazi okuması | IoU | Ortalama mutlak fark | Maksimum | Ortalama derinlik |
+| --- | --- | --- | --- | --- |
+| VRT'nin verdiği (kanalda 0,5 m) | **%72,82** | **0,0187 m** | 1,5724 m | 0,1280 m |
+| İnce 0,1 m ölçüm bindirilmiş | %48,81 | 0,0533 m | 1,2894 m | 0,1401 m |
+| Referansın kendisi | — | — | 1,5705 m | 0,1285 m |
+
+Müşterinin haritası VRT'nin verdiği araziyle üretilmiş. İnce ölçümü öne almak
+haritayı referanstan 24 puan uzaklaştırıyor.
+
+Bunun pratik bir sonucu var: **RASMapper haritayı karo karo çizdiğinde ince
+ölçümü kullanıyor** ve teslim edilen sonuçlardan farklı bir harita üretiyor.
+2026-09-02'de Windows'ta ölçüldü, RASMapper'ın kendi mozaiği maksimum 1,267 m /
+ortalama 0,1446 m verdi — yukarıdaki ikinci satır. Yani RASMapper'ın bu
+makinedeki çıktısı müşterinin referansını üretmiyor; üreten bizim okumamız.
+
 **3. Islanmamış hücreler.** Hiç ıslanmayan bir hücre için HEC-RAS maksimum su
 kotunu hücrenin kendi taban kotu olarak raporlar — bu su değildir. Tabanı bir
 bina üzerinde oturan kuru hücreler, binanın kaplamadığı şeritte 20 m derinlik

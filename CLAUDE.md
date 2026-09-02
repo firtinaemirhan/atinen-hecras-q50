@@ -136,6 +136,23 @@ Referansın kendi ızgarasında ölçülen sonuç:
 | Eğimli (yeni) | %72,82 | 0,0187 m | −0,0008 m | 0,1280 m | 1,5724 m |
 | Referans | — | — | — | 0,1285 m | 1,5705 m |
 
+**Arazi karo önceliği (2 Eylül'de bulundu, kritik).** `merge.Clone.vrt` iki
+karodan oluşuyor: `ent` (0,1 m kanal ölçümü) ve `SET14_37_DTM` (0,5 m). VRT'de
+SET14 ikinci sırada, yani GDAL onu `ent`in üstüne çiziyor; kanalda okunan kot
+kaba DTM. Ölçüldü, aynı su yüzeyiyle:
+
+| Arazi | IoU | |fark| | maks | ort |
+| --- | --- | --- | --- | --- |
+| VRT'nin verdiği (mevcut) | %72,82 | 0,0187 m | 1,5724 | 0,1280 |
+| ince ent bindirilmiş | %48,81 | 0,0533 m | 1,2894 | 0,1401 |
+| referans | — | — | 1,5705 | 0,1285 |
+
+Müşterinin referansı VRT okumasıyla uyuşuyor. **RASMapper karo karo çizdiği
+için ince ölçümü kullanıyor** ve Windows'taki koşusu maks 1,267 / ort 0,1446
+verdi, yani ikinci satır. RASMapper'ın bu makinedeki çıktısı referansı
+üretmiyor; üreten bizim okumamız. Bunu "RASMapper'a ürettirip birebir yakala"
+planından önce bil.
+
 Bit düzeyinde birebir kopya bu veriyle mümkün değil: referans bir noktada
 ArcGIS'te yeniden örneklenmiş (ızgara yarım piksel kaymış) ve onu üreten ham
 RASMapper çıktısı pakette yok. Bu, Windows koşusu tuttuktan sonra RASMapper'a
