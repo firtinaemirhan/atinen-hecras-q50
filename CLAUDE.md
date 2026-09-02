@@ -60,26 +60,42 @@ Harita tarafı bitti. Kalan iş, `RasUnsteady.exe`'nin
 `forrtl: severe (157) access violation` ile `READ_UN_HDF_STRUC` içinde
 ölmesini çözmek.
 
-**En güçlü hipotez (henüz sınanmadı):** `A_A_B_INPINAR.p05` dosyası
+**Sınanan ve ÇÜRÜYEN hipotez (1-2 Eylül gecesi):** `A_A_B_INPINAR.p05`
+`UNET Use Existing IB Tables=-1` diyor ve teslim edilen `g03.hdf`'te
+`Geometry/Structures/Property Tables` yok. `--ib-tables rebuild` ile bayrak
+kapatıldı, ön işlemci çalıştı, **motor gene aynı yerde öldü:**
 
 ```
-UNET Use Existing IB Tables=-1
+Computing 2D Flow Area 'inpinar' tables: Property tables do not exist.
+2D Flow Area 'inpinar' tables complete 4,56 sec
+Geometric Preprocessor HEC-RAS 6.6 September 2024
+Finished Processing Geometry
+Performing Unsteady Flow Simulation  HEC-RAS 6.6 September 2024
+forrtl: severe (157): Program Exception - access violation
+RasUnsteady.exe  READ_UN_HDF_STRUC  330  Read_UN_HDF_STRUC_GRP.for
 ```
 
-diyor, yani yapı (internal boundary) tablolarını geometriden hazır oku. Ama
-teslim edilen `A_A_B_INPINAR.g03.hdf` içinde `Geometry/Structures/Property
-Tables` yok. Çöken rutinin adı tam olarak o tabloları okuyan rutin. Daha
-önceki yedi deneme bu bayrağa hiç dokunmadı. `--ib-tables rebuild` bunu
-kapatır.
+Kaçırılan ayrım: ön işlemcinin kurduğu şey **2D Flow Area** (mesh) tabloları,
+`READ_UN_HDF_STRUC`'un okuduğu şey **Structures** property tabloları. İkisi ayrı.
+`Geometry/Structures` var, içinde `Property Tables` yok, ön işlemci de onu
+kurmuyor.
 
-Çalıştırılacak komut:
+**Altı adayın altısı da düştü** (ib-rebuild, rasprocess, harvest, controller,
+single-core, inline-hydrograph), dördü aynı imzayla: `READ_UN_HDF_STRUC` 330.
+Kanıt: `evidence/` klasörü.
 
-```
-python tools\windows_verify.py ^
-  --project "<CASE DATA 2 yolu>" ^
-  --ras-dir "C:\Program Files (x86)\HEC\HEC-RAS\6.6" ^
-  --reference "<CASE DATA 2 yolu>\AKA_AFY_BAY_INPINAR_1\3_Pafta\6_derinlik\q50_d.tif"
-```
+**Kritik gözlem:** `harvest` adayı `p05.hdf`'ten TÜM Geometry grubunu kopyalar,
+yani o denemede `Structures/Property Tables` **vardı** ve gene çöktü. Demek ki
+tabloların varlığı tek başına yetmiyor; sorun ya tabloların içeriğinde, ya da
+onlara işaret eden indekslerin (`Structures/Table Info`) tutmamasında.
+`harvest` logunda ayrıca "inpinar: Mesh property tables are current." yazıyor —
+mesh tarafı sebep değil.
+
+**Model çalışıyor, sorun teslim edilen veride.** Müşterinin kendi 9 Temmuz
+koşusu `p05.hdf` içinde duruyor: 1 dk 35 sn, hacim hatası %0,16, ve içinde
+`0302_4` SA/2D bağlantısı menfeziyle birlikte sorunsuz çalışmış. Yani çöküş
+modelin doğasında değil, geometrinin 10 Ağustos'ta yeniden kaydedilirken yapı
+tablolarını kaybetmiş olmasında.
 
 Altı adayı sırayla dener, ilk başarılıda durur, her denemenin kanıtını
 (uygulama çıktısı + HEC-RAS'ın plan HDF'i içindeki hesap günlüğü + `.bco`)

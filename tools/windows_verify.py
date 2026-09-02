@@ -18,6 +18,14 @@ Every attempt leaves behind, under ``--evidence``:
 That is the point of the script.  A run that fails and explains why is worth
 more than one that succeeds and cannot be shown.
 
+Only files HEC-RAS wrote *during that attempt* are kept, and each one carries a
+header naming its source, size and modification time.  The working copy is a
+copy of the delivered project, and the delivered project already contains a
+results file from the client's own successful run in July -- an earlier version
+of this script read it whenever an attempt failed before HEC-RAS wrote anything,
+and saved the client's July log under a filename claiming to be that attempt.
+An attempt that produced no log now says exactly that.
+
     python tools\\windows_verify.py ^
         --project "C:\\path\\to\\CASE_DATA 2" ^
         --ras-dir "C:\\Program Files (x86)\\HEC\\HEC-RAS\\6.6" ^
@@ -28,10 +36,11 @@ from __future__ import annotations
 
 import argparse
 import platform
-import shutil
 import subprocess
 import sys
+import time
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -124,20 +133,94 @@ def _compute_messages(plan_hdf: Path) -> str:
     return "(the results file carries no computation log)"
 
 
-def _collect(workspace: Path, evidence: Path, stem: str) -> None:
-    """Copy whatever HEC-RAS wrote about this attempt next to our own log."""
+#: A file only counts as this attempt's evidence if it was written after the
+#: attempt started. Without that test the workspace hands back the client's own
+#: results file -- the working copy is a copy of the delivered project, and the
+#: delivered project already contains a computed p05.hdf from their July run.
+#: Reading it produced a "02-rasprocess.compute.txt" that was byte for byte the
+#: client's 09Jul2026 log, under a filename claiming to be tonight's attempt.
+#: Evidence that could not be produced must say so; it must not be filled in
+#: with older evidence.
+_CLOCK_SLACK_SECONDS = 5.0
+
+
+def _written_since(path: Path, started_at: float) -> bool:
+    try:
+        return path.stat().st_mtime >= started_at - _CLOCK_SLACK_SECONDS
+    except OSError:
+        return False
+
+
+def _provenance(path: Path) -> str:
+    stat = path.stat()
+    when = datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds")
+    return f"# source: {path}\n# modified: {when}\n# bytes: {stat.st_size}\n\n"
+
+
+def _collect(workspace: Path, evidence: Path, stem: str, started_at: float) -> None:
+    """Keep what HEC-RAS wrote *during this attempt*, and nothing else.
+
+    Every file kept carries a header naming where it came from and when it was
+    written, so a log can never be read as belonging to a run that did not
+    produce it.
+    """
     folders = [p for p in workspace.glob("*") if p.is_dir()] or [workspace]
-    for folder in folders:
-        for plan_hdf in folder.glob("*.p05.hdf"):
-            (evidence / f"{stem}.compute.txt").write_text(
-                _compute_messages(plan_hdf), encoding="utf-8"
-            )
-        for bco in folder.glob("*.bco*"):
-            try:
-                shutil.copy2(bco, evidence / f"{stem}.bco.txt")
-            except OSError:
-                pass
-            break
+
+    fresh_plan = next(
+        (
+            plan_hdf
+            for folder in folders
+            for plan_hdf in sorted(folder.glob("*.p*.hdf"))
+            if _written_since(plan_hdf, started_at)
+        ),
+        None,
+    )
+    compute_path = evidence / f"{stem}.compute.txt"
+    if fresh_plan is None:
+        stale = [
+            str(plan_hdf)
+            for folder in folders
+            for plan_hdf in sorted(folder.glob("*.p*.hdf"))
+        ]
+        compute_path.write_text(
+            "# HEC-RAS produced no results file during this attempt.\n"
+            "# It stopped before writing one, so there is no computation log\n"
+            "# for this attempt. The application's own output is in "
+            f"{stem}.log.\n"
+            + (
+                "# Plan HDF files that were already in the working copy and are\n"
+                "# NOT this attempt's output:\n"
+                + "".join(f"#   {path}\n" for path in stale)
+                if stale
+                else ""
+            ),
+            encoding="utf-8",
+        )
+    else:
+        compute_path.write_text(
+            _provenance(fresh_plan) + _compute_messages(fresh_plan), encoding="utf-8"
+        )
+
+    fresh_bco = next(
+        (
+            bco
+            for folder in folders
+            for bco in sorted(folder.glob("*.bco*"))
+            if _written_since(bco, started_at)
+        ),
+        None,
+    )
+    bco_path = evidence / f"{stem}.bco.txt"
+    if fresh_bco is None:
+        bco_path.write_text(
+            "# No .bco run log was written during this attempt.\n", encoding="utf-8"
+        )
+    else:
+        bco_path.write_text(
+            _provenance(fresh_bco)
+            + fresh_bco.read_text(encoding="latin-1", errors="replace"),
+            encoding="utf-8",
+        )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -206,6 +289,9 @@ def main(argv: list[str] | None = None) -> int:
             *attempt.arguments,
         ]
         print("  " + " ".join(f'"{c}"' if " " in c else c for c in command))
+        # Anything older than this instant belongs to an earlier run, or to the
+        # client, and is not this attempt's evidence.
+        started_at = time.time()
         try:
             finished = subprocess.run(
                 command, capture_output=True, text=True, timeout=args.timeout, cwd=str(ROOT)
@@ -217,7 +303,7 @@ def main(argv: list[str] | None = None) -> int:
             code = 124
 
         (args.evidence / f"{stem}.log").write_text(transcript, encoding="utf-8")
-        _collect(args.workspace, args.evidence, stem)
+        _collect(args.workspace, args.evidence, stem, started_at)
 
         tail = [line for line in transcript.splitlines() if line.strip()][-12:]
         for line in tail:
