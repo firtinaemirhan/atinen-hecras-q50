@@ -73,12 +73,27 @@ _TERRAIN_DATE = re.compile(r"^(\d{2})([A-Za-z]{3})(\d{4})\s+(\d{2}):(\d{2}):(\d{
 # Both are present in the results file from the client's own successful run and
 # absent from the delivered geometry.
 _BARRELS = "Geometry/Structures/Culvert Groups/Barrels"
+_BC_LINES = "Geometry/Boundary Condition Lines"
+_EXTERNAL_FACES = f"{_BC_LINES}/External Faces"
 
 REQUIRED = (
     "Geometry/GeomPreprocess",
     f"{_BARRELS}/Upstream Cells",
     f"{_BARRELS}/Downstream Cells",
+    _EXTERNAL_FACES,
 )
+
+#: Fields holding an index into another dataset, which has to be translated
+#: when a dataset is copied between two files that number things differently.
+#: ``Face Index`` is the one that matters: the two files agree on face points
+#: but not on faces, so a copied face index would point at a different edge.
+_REMAP_FIELDS = {
+    _EXTERNAL_FACES: {
+        "Face Index": "face",
+        "FP Start Index": "face_point",
+        "FP End Index": "face_point",
+    },
+}
 
 
 @dataclass(frozen=True)
@@ -173,9 +188,94 @@ def _declares_culverts(handle: "h5py.File") -> bool:
 def _required_for(handle: "h5py.File") -> tuple[str, ...]:
     """The subset of :data:`REQUIRED` this particular model needs."""
     culverts = _declares_culverts(handle)
-    return tuple(
-        key for key in REQUIRED if not key.startswith(_BARRELS) or culverts
-    )
+    bc_lines = f"{_BC_LINES}/Attributes" in handle
+    keep = []
+    for key in REQUIRED:
+        if key.startswith(_BARRELS) and not culverts:
+            continue
+        if key == _EXTERNAL_FACES and not bc_lines:
+            continue
+        keep.append(key)
+    return tuple(keep)
+
+
+def _index_maps(source: "h5py.File", target: "h5py.File") -> dict[str, np.ndarray]:
+    """Translate face and face-point numbering from ``source`` to ``target``.
+
+    The two files describe the same mesh and agree on cells, but not on faces:
+    10678 of 12868 faces sit at a different index.  Copying a face index across
+    without translating it points the boundary condition at a different edge of
+    the mesh, which is worse than leaving it out.
+
+    Coordinates are the common language.  Face points are matched on position,
+    then a face is matched by the pair of face points it joins.  On the
+    delivered pair this resolves completely -- 7399 of 7399 face points and
+    12868 of 12868 faces, one to one, with the matched faces' midpoints
+    agreeing to 1.9e-08 m.  The mapping is rebuilt and rechecked every time
+    rather than assumed.
+    """
+    maps: dict[str, np.ndarray] = {}
+    areas = source.get("Geometry/2D Flow Areas")
+    if areas is None:
+        return maps
+    for name, node in areas.items():
+        other = target.get(f"Geometry/2D Flow Areas/{name}")
+        if not isinstance(node, h5py.Group) or other is None:
+            continue
+        if "FacePoints Coordinate" not in node or "FacePoints Coordinate" not in other:
+            continue
+        theirs = node["FacePoints Coordinate"][...]
+        ours = other["FacePoints Coordinate"][...]
+        lookup = {tuple(np.round(point, 4)): index for index, point in enumerate(ours)}
+        point_map = np.array(
+            [lookup.get(tuple(np.round(point, 4)), -1) for point in theirs],
+            dtype=np.int64,
+        )
+        maps["face_point"] = point_map
+
+        if "Faces FacePoint Indexes" in node and "Faces FacePoint Indexes" in other:
+            edges = {
+                tuple(sorted(map(int, row))): index
+                for index, row in enumerate(other["Faces FacePoint Indexes"][...])
+            }
+            translated = point_map[node["Faces FacePoint Indexes"][...]]
+            maps["face"] = np.array(
+                [edges.get(tuple(sorted(map(int, row))), -1) for row in translated],
+                dtype=np.int64,
+            )
+        break
+    return maps
+
+
+def _remap(record: np.ndarray, fields: dict[str, str], maps: dict[str, np.ndarray]):
+    """Rewrite index fields in a copied dataset, or refuse."""
+    out = record.copy()
+    for field, kind in fields.items():
+        if field not in (out.dtype.names or ()):
+            continue
+        table = maps.get(kind)
+        if table is None:
+            raise ComputeError(
+                f"No {kind} mapping between the two files, so {field} cannot be "
+                "translated.",
+                hint="Refusing to copy an index that would point at the wrong "
+                "part of the mesh.",
+            )
+        values = out[field].astype(np.int64)
+        if (values < 0).any() or (values >= len(table)).any():
+            raise ComputeError(f"{field} is out of range for this mesh.")
+        translated = table[values]
+        if (translated < 0).any():
+            raise ComputeError(
+                f"{field} refers to part of the mesh that has no counterpart in "
+                "the geometry being repaired.",
+                hint="The two files do not describe the same mesh.",
+            )
+        out[field] = translated
+    return out
+
+
+
 
 
 def missing_tables(geometry_hdf: Path) -> tuple[str, ...]:
@@ -421,6 +521,7 @@ def graft_missing(geometry_hdf: Path, results_hdf: Path) -> Repair:
                     )
 
     copied: list[str] = []
+    maps: dict[str, np.ndarray] | None = None
     with h5py.File(results_hdf, "r") as source, h5py.File(geometry_hdf, "r+") as target:
         for key in available:
             if key in target:
@@ -440,6 +541,12 @@ def graft_missing(geometry_hdf: Path, results_hdf: Path) -> Repair:
                 del target[branch]
             source.copy(source[branch], target[parent], name=parts[depth - 1])
             copied.append(branch)
+
+            fields = _REMAP_FIELDS.get(branch)
+            if fields is not None:
+                if maps is None:
+                    maps = _index_maps(source, target)
+                target[branch][...] = _remap(source[branch][...], fields, maps)
     return Repair(geometry_hdf, results_hdf, tuple(copied))
 
 

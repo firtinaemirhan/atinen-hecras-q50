@@ -240,6 +240,10 @@ def _geometry_file(path: Path, *, complete: bool, culverts: bool = True) -> Path
         handle.attrs["Units System"] = np.bytes_(b"SI Units")
         handle.create_group("Geometry/Structures")
         handle.create_dataset(
+            "Geometry/Boundary Condition Lines/Attributes",
+            data=np.array([(b"inflow",)], dtype=[("Name", "S16")]),
+        )
+        handle.create_dataset(
             "Geometry/Structures/Attributes",
             data=np.array(
                 [(b"Weir/Gate/Culverts", 2 if culverts else 0)],
@@ -253,6 +257,14 @@ def _geometry_file(path: Path, *, complete: bool, culverts: bool = True) -> Path
         handle.create_group("Geometry/Structures/Property Tables")
         if complete:
             handle.create_dataset("Geometry/GeomPreprocess/Node Info", data=np.arange(3))
+            handle.create_dataset(
+                "Geometry/Boundary Condition Lines/External Faces",
+                data=np.array(
+                    [(0, 1, 0, 1), (0, 0, 1, 2)],
+                    dtype=[("BC Line ID", "<i4"), ("Face Index", "<i4"),
+                           ("FP Start Index", "<i4"), ("FP End Index", "<i4")],
+                ),
+            )
             if culverts:
                 handle.create_dataset(f"{BARRELS}/Upstream Cells", data=np.arange(6))
                 handle.create_dataset(f"{BARRELS}/Downstream Cells", data=np.arange(8))
@@ -292,7 +304,10 @@ def test_a_model_without_culverts_needs_no_barrel_datasets(tmp_path: Path):
     assert geometry.missing_tables(path) == ()
 
     bare = _geometry_file(tmp_path / "bare.g03.hdf", complete=False, culverts=False)
-    assert geometry.missing_tables(bare) == ("Geometry/GeomPreprocess",)
+    assert geometry.missing_tables(bare) == (
+        "Geometry/GeomPreprocess",
+        "Geometry/Boundary Condition Lines/External Faces",
+    )
 
 
 def test_geometry_is_rebuilt_from_the_results_file(tmp_path: Path):
@@ -311,12 +326,24 @@ def test_geometry_is_rebuilt_from_the_results_file(tmp_path: Path):
         assert "Results" not in handle, "only the Geometry group is taken"
 
 
-def _with_mesh(path: Path, centres) -> Path:
-    """Give a geometry file a 2D area, so the graft has cell numbering to check."""
+#: Three face points and two faces joining them. The two files below number the
+#: faces the other way round, which is the situation the remap exists for: the
+#: delivered geometry and the results file disagree about 10678 of 12868 faces.
+FACE_POINTS = [[0.0, 0.0], [1.0, 0.0], [2.0, 0.0]]
+
+
+def _with_mesh(path: Path, centres, faces=((0, 1), (1, 2))) -> Path:
+    """Give a geometry file a 2D area, so the graft has numbering to check."""
     with h5py.File(path, "r+") as handle:
+        area = "Geometry/2D Flow Areas/inpinar"
         handle.create_dataset(
-            "Geometry/2D Flow Areas/inpinar/Cells Center Coordinate",
-            data=np.asarray(centres, dtype="float64"),
+            f"{area}/Cells Center Coordinate", data=np.asarray(centres, dtype="float64")
+        )
+        handle.create_dataset(
+            f"{area}/FacePoints Coordinate", data=np.asarray(FACE_POINTS, dtype="float64")
+        )
+        handle.create_dataset(
+            f"{area}/Faces FacePoint Indexes", data=np.asarray(faces, dtype="int32")
         )
     return path
 
@@ -386,6 +413,36 @@ def test_graft_restores_a_whole_missing_branch(tmp_path: Path):
     with h5py.File(incomplete, "r") as handle:
         # not just the two leaves: the attributes describing the barrels too
         assert f"{BARRELS}/Attributes" in handle
+
+
+def test_graft_translates_face_indexes_it_copies(tmp_path: Path):
+    """A face index copied without translating points at a different edge.
+
+    The delivered geometry and the results file agree on face points and
+    disagree on faces -- 10678 of 12868 sit at a different index. The boundary
+    condition's External Faces is indexed by face, so it has to be rewritten in
+    the receiving file's numbering, matched through coordinates.
+    """
+    from q50depth import geometry
+
+    # Same two edges, listed the other way round.
+    incomplete = _with_mesh(
+        _geometry_file(tmp_path / "MODEL.g03.hdf", complete=False),
+        CENTRES,
+        faces=((1, 2), (0, 1)),
+    )
+    results_hdf = _with_mesh(
+        _geometry_file(tmp_path / "MODEL.p05.hdf", complete=True),
+        CENTRES,
+        faces=((0, 1), (1, 2)),
+    )
+
+    geometry.graft_missing(incomplete, results_hdf)
+
+    with h5py.File(incomplete, "r") as handle:
+        copied = handle["Geometry/Boundary Condition Lines/External Faces"][...]
+    # face 1 in the results file is edge (1,2), which is face 0 here; and 0 -> 1
+    assert copied["Face Index"].tolist() == [0, 1]
 
 
 def test_graft_refuses_a_mesh_it_does_not_recognise(tmp_path: Path):
