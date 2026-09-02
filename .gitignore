@@ -11,10 +11,16 @@ workspace/
 OUTPUT/*
 !OUTPUT/.gitkeep
 
-# The two files the brief asks to deliver are kept, everything else under
-# OUTPUT/ is scratch.
+# The raster the brief asks to deliver is kept; everything else under OUTPUT/
+# is scratch.
 !OUTPUT/q50_depth.tif
-!OUTPUT/run.log
+
+# OUTPUT/run.log is deliberately NOT tracked. Every run rewrites it, so on a
+# machine that is both running the tool and pulling from the repo it blocks
+# `git pull` with "your local changes would be overwritten" -- which cost 11
+# minutes of a Windows session on 2026-09-02. It also caused a delivery defect
+# once: a stale error line from an old run shipped in the package. The stable
+# example of a run log is docs/ornek-calisma-kaydi.txt, which is tracked.
 
 # --- python ---
 __pycache__/

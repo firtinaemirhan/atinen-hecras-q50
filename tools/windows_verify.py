@@ -245,11 +245,18 @@ def main(argv: list[str] | None = None) -> int:
                         help="Where to keep the logs (default: ./evidence).")
     parser.add_argument("--workspace", type=Path, default=Path.home() / "q50-workspace",
                         help="Where the project is copied before computing.")
-    parser.add_argument("--output", type=Path, default=ROOT / "OUTPUT" / "q50_depth.tif")
+    parser.add_argument("--output", type=Path, default=None,
+                        help="Where the raster goes. Default: <evidence>/q50_depth.tif, "
+                             "which keeps runs from rewriting a tracked file and "
+                             "blocking git pull on the machine doing the running.")
     parser.add_argument("--only", metavar="NAME",
                         help="Run just one attempt by name, instead of all of them.")
-    parser.add_argument("--timeout", type=int, default=7200,
-                        help="Seconds to allow each attempt (default: 7200).")
+    parser.add_argument("--timeout", type=int, default=1800,
+                        help="Seconds to allow each attempt (default: 1800). The "
+                             "client's own successful run took 1 min 35 s, so an "
+                             "attempt still going after half an hour is stuck, not "
+                             "slow -- and a stuck attempt costs more than a "
+                             "cancelled one.")
     args = parser.parse_args(argv)
 
     if platform.system() != "Windows":
@@ -258,6 +265,20 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     args.evidence.mkdir(parents=True, exist_ok=True)
+    if args.output is None:
+        args.output = args.evidence / "q50_depth.tif"
+
+    # HEC-RAS raises modal dialogs on a headless or COM launch. ras-commander can
+    # dismiss them, but only with pywin32; without it a run does not fail, it
+    # *hangs* with an invisible window open, which is far harder to read than a
+    # crash. One attempt sat for 11 minutes that way on 2026-09-02.
+    try:
+        import win32gui  # noqa: F401, PLC0415
+        print("pywin32   present; ras-commander can dismiss HEC-RAS dialogs")
+    except ImportError:
+        print("pywin32   MISSING. HEC-RAS dialogs cannot be dismissed and an "
+              "attempt may hang instead of failing.")
+        print("          pip install -r requirements-windows.txt")
     attempts = ATTEMPTS
     if args.only:
         attempts = [a for a in ATTEMPTS if a.name == args.only]
