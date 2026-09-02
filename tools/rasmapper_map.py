@@ -108,6 +108,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--ours", type=Path, default=ROOT / "OUTPUT" / "q50_depth.tif",
                         help="The raster this project produced.")
     parser.add_argument("--plan", default="05", help="Plan number (default: 05, the Q50 plan).")
+    parser.add_argument("--terrain", default=None, metavar="NAME",
+                        help="Registered terrain RAS Mapper should draw against, "
+                             "e.g. merge.Clone (the one with the 69 building "
+                             "elevation modifications) or merge (without them). "
+                             "Default: whatever the project has active.")
     parser.add_argument("--render-mode", default="sloping",
                         help="Water surface RAS Mapper should draw (default: sloping, "
                              "which is what the project's own .rasmap specifies).")
@@ -188,13 +193,15 @@ def main(argv: list[str] | None = None) -> int:
 
     args.out.mkdir(parents=True, exist_ok=True)
     print(f"asking RAS Mapper for the Q50 maximum depth map, render mode "
-          f"'{args.render_mode}' ...")
+          f"'{args.render_mode}', terrain "
+          f"{args.terrain or '(the project default)'} ...")
     summary = rc.RasMap.store_all_maps(
         plan_number=args.plan,
         mode="selected",
         depth=True,
         profile="Max",
         render_mode=args.render_mode,
+        terrain_name=args.terrain,
         output_path=str(args.out),
         ras_object=ras_project,
         ras_version=ras_version,

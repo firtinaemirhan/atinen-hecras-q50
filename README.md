@@ -534,6 +534,20 @@ referansa karşı yarıştırdım:
 Müşterinin haritası VRT'nin verdiği araziyle üretilmiş. İnce ölçümü öne almak
 haritayı referanstan 24 puan uzaklaştırıyor.
 
+Farkın kaynağının karo seçimi olduğu, bina kot değişikliği olmadığı ayrıca
+ölçüldü — iki değişken bağımsız çevrildi:
+
+| Bina düzeltmesi | Arazi karosu | IoU | Maksimum | Ortalama | Islak piksel |
+| --- | --- | --- | --- | --- | --- |
+| açık | VRT (kaba) | %72,82 | 1,5724 m | 0,1280 m | 318 259 |
+| açık | ince ent | %48,81 | 1,2894 m | 0,1401 m | 439 907 |
+| kapalı | VRT (kaba) | %71,93 | 1,5724 m | 0,1282 m | 324 041 |
+| kapalı | ince ent | %48,42 | 1,2894 m | 0,1401 m | 445 689 |
+
+Bina düzeltmesini kapatmak maksimumu hiç değiştirmiyor ve ortalamayı 0,2 mm
+oynatıyor; karo seçimi maksimumu 28 cm, örtüşmeyi 24 puan değiştiriyor. Sebep
+karo seçimi.
+
 Bunun pratik bir sonucu var: **RASMapper haritayı karo karo çizdiğinde ince
 ölçümü kullanıyor** ve teslim edilen sonuçlardan farklı bir harita üretiyor.
 2026-09-02'de Windows'ta ölçüldü, RASMapper'ın kendi mozaiği maksimum 1,267 m /
