@@ -4,10 +4,10 @@ HEC-RAS keeps two kinds of thing in a geometry HDF: the model as drawn, and
 the tables its geometry preprocessor derives from that model and the terrain.
 The delivered ``A_A_B_INPINAR.g03.hdf`` has the first and not the second::
 
-    Geometry/Structures                  present
-    Geometry/Structures/Property Tables  MISSING
-    Geometry/GeomPreprocess              MISSING
-    Geometry/Cross Sections              MISSING
+    Geometry/Structures                       present
+    Geometry/GeomPreprocess                   MISSING  <- IBC_CON lives here
+    .../Culvert Groups/Barrels/Upstream Cells MISSING
+    .../Culvert Groups/Barrels/Downstream Cells MISSING
 
 The unsteady engine reads those structure tables on start-up
 (``READ_UN_HDF_STRUC``) and, when they are absent, dies with
@@ -15,8 +15,11 @@ The unsteady engine reads those structure tables on start-up
     forrtl: severe (157): Program Exception - access violation
 
 instead of reporting them missing.  Re-running the geometry preprocessor does
-not help: it rebuilds the 2D flow area tables ("Computing 2D Flow Area
-'inpinar' tables") and leaves the structure tables alone.
+not help, and the run on 2026-09-02 showed exactly why: it rebuilds the *2D
+flow area* tables ("Computing 2D Flow Area 'inpinar' tables complete") and
+those are a different thing from the *structure* tables the engine then goes
+looking for.  The engine died in the same routine with the mesh tables freshly
+built and current.
 
 The tables do exist in the delivery, inside the results file the original run
 produced.  That file carries a complete ``Geometry`` group for this same
@@ -46,9 +49,34 @@ _MONTHS = {
 _TERRAIN_DATE = re.compile(r"^(\d{2})([A-Za-z]{3})(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$")
 
 # What a geometry the unsteady engine can start on must contain.
+#
+# Not "Geometry/Structures/Property Tables". That group was used as the marker
+# at first and it is the wrong one: in every file that has it -- the delivered
+# results, the other project's geometry -- it is an *empty group*. Its presence
+# says nothing, and testing for it made ``--geometry rasprocess`` look like it
+# had failed when the question had not been asked properly.
+#
+# These two are the datasets that carry actual content:
+#
+# ``Geometry/GeomPreprocess``
+#     Output of the geometric preprocessor: IBC_CON (the internal boundary
+#     connections), NODE2ICS, Node Info, Reach Connections, Skyline. This is
+#     what READ_UN_HDF_STRUC -- "read unsteady HDF structures" -- reads.
+#
+# ``.../Culvert Groups/Barrels/Upstream Cells`` and ``Downstream Cells``
+#     Which 2D mesh cell each culvert barrel opens into, with the station range
+#     it covers. The delivered geometry declares two SA/2D connections with
+#     four culvert barrels and does not say which cells they connect, so the
+#     engine has nothing to resolve them against.
+#
+# Both are present in the results file from the client's own successful run and
+# absent from the delivered geometry.
+_BARRELS = "Geometry/Structures/Culvert Groups/Barrels"
+
 REQUIRED = (
-    "Geometry/Structures/Property Tables",
     "Geometry/GeomPreprocess",
+    f"{_BARRELS}/Upstream Cells",
+    f"{_BARRELS}/Downstream Cells",
 )
 
 
@@ -114,13 +142,28 @@ def align_terrain_timestamp(geometry_hdf: Path, project_folder: Path) -> str | N
     return recorded if touched else None
 
 
+def _required_for(handle: "h5py.File") -> tuple[str, ...]:
+    """The subset of :data:`REQUIRED` this particular model needs.
+
+    A model with no culverts never has the barrel-to-cell datasets and is not
+    broken for lacking them, so they are only required where the barrels exist.
+    """
+    return tuple(
+        key
+        for key in REQUIRED
+        if not key.startswith(_BARRELS) or _BARRELS in handle
+    )
+
+
 def missing_tables(geometry_hdf: Path) -> tuple[str, ...]:
     """Which preprocessed groups a geometry HDF lacks."""
     if not geometry_hdf.is_file():
         return REQUIRED
     try:
         with h5py.File(geometry_hdf, "r") as handle:
-            return tuple(key for key in REQUIRED if key not in handle)
+            return tuple(
+                key for key in _required_for(handle) if key not in handle
+            )
     except OSError:
         return REQUIRED
 
@@ -128,7 +171,7 @@ def missing_tables(geometry_hdf: Path) -> tuple[str, ...]:
 def _has_complete_geometry(results_hdf: Path) -> bool:
     try:
         with h5py.File(results_hdf, "r") as handle:
-            return all(key in handle for key in REQUIRED)
+            return all(key in handle for key in _required_for(handle))
     except OSError:
         return False
 

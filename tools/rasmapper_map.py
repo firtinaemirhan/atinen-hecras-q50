@@ -79,7 +79,9 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--project", type=Path, required=True,
                         help="The delivered data folder. Copied first; never modified.")
-    parser.add_argument("--ras-dir", type=Path, required=True)
+    parser.add_argument("--ras-dir", type=Path, required=True,
+                        help='HEC-RAS installation folder, or a full path to Ras.exe. '
+                             r'e.g. "C:\Program Files (x86)\HEC\HEC-RAS\6.6"')
     parser.add_argument("--reference", type=Path,
                         help="The client's q50_d.tif, for the second comparison.")
     parser.add_argument("--ours", type=Path, default=ROOT / "OUTPUT" / "q50_depth.tif",
@@ -118,6 +120,34 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     print("RasMap.store_all_maps accepts every parameter this tool passes.")
 
+    # Checking the signature is not enough. store_all_maps imports RasProcess
+    # from inside its own body, and RasProcess imports geopandas -- which
+    # ras-commander does not declare as a dependency. A signature check passes
+    # happily and the call then dies on ModuleNotFoundError. So resolve the
+    # chain here, where it is cheap to report.
+    try:
+        from ras_commander import RasProcess  # noqa: F401, PLC0415
+    except ImportError as exc:
+        print(f"The import chain store_all_maps needs is broken: {exc}")
+        print("ras-commander pulls this in without declaring it. Install the "
+              "Windows requirements: pip install -r requirements-windows.txt")
+        return 2
+    print("The import chain store_all_maps triggers resolves.")
+
+    # ras-commander wants a version string ("6.6") or a full path to Ras.exe.
+    # Handing it the installation *folder* is silently wrong: it joins the base
+    # directory to what you gave it and resolves ras_exe_path to the bare name
+    # "Ras.exe", which then depends on PATH. compute.py already knows the rule,
+    # so the rule lives in one place.
+    from q50depth.compute import _resolve_ras_version  # noqa: PLC0415
+
+    try:
+        ras_version = _resolve_ras_version(args.ras_dir)
+    except Exception as exc:  # ComputeError and anything else
+        print(f"--ras-dir does not resolve: {exc}")
+        return 2
+    print(f"HEC-RAS resolves to {ras_version}")
+
     if args.dry_run:
         print("--dry-run: stopping before the project is copied.")
         return 0
@@ -133,7 +163,7 @@ def main(argv: list[str] | None = None) -> int:
     prj = project_module.find_project_file(args.workspace)
     print(f"project {prj}")
 
-    ras_project = rc.init_ras_project(str(prj.parent), str(args.ras_dir))
+    ras_project = rc.init_ras_project(str(prj.parent), ras_version)
 
     args.out.mkdir(parents=True, exist_ok=True)
     print(f"asking RAS Mapper for the Q50 maximum depth map, render mode "
@@ -146,7 +176,7 @@ def main(argv: list[str] | None = None) -> int:
         render_mode=args.render_mode,
         output_path=str(args.out),
         ras_object=ras_project,
-        ras_version=str(args.ras_dir),
+        ras_version=ras_version,
         raise_on_error=True,
     )
     print("summary:")

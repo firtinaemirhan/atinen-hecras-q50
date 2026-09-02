@@ -5,3 +5,14 @@
 #   RasCmdr.compute_plan   -> HEC-RAS command line runner
 #   RasControl.run_plan    -> RAS66.HECRASController COM automation
 ras-commander>=0.99
+
+# ras-commander does not declare these, but its stored-map path needs them:
+#   RasMap.store_all_maps -> RasProcess -> RasBenefits -> geopandas
+# Measured on 2026-09-02: without geopandas the call dies with
+# ModuleNotFoundError after the signature check has already passed.
+geopandas>=1.0
+
+# Lets ras-commander dismiss the modal dialogs HEC-RAS raises on a headless or
+# COM launch. Without it ras-commander warns "dialogs will NOT be auto-dismissed"
+# and a COM run can hang on a dialog nobody can see.
+pywin32>=306

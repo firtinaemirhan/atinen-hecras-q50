@@ -225,17 +225,31 @@ def test_compute_messages_are_read_from_the_results_file_when_no_log_was_written
     assert "terrain not found" in (error.value.hint or "")
 
 
-def _geometry_file(path: Path, *, complete: bool) -> Path:
+BARRELS = "Geometry/Structures/Culvert Groups/Barrels"
+
+
+def _geometry_file(path: Path, *, complete: bool, culverts: bool = True) -> Path:
+    """A miniature geometry shaped like the delivered one.
+
+    ``culverts`` mirrors the delivered model, which declares two SA/2D
+    connections with culvert barrels. A model without culverts is not missing
+    anything when it has no barrel-to-cell datasets, and that is tested too.
+    """
     with h5py.File(path, "w") as handle:
         handle.attrs["File Type"] = np.bytes_(b"HEC-RAS Geometry")
         handle.attrs["Units System"] = np.bytes_(b"SI Units")
         handle.create_group("Geometry/Structures")
         handle.create_dataset("Geometry/Structures/Attributes", data=np.arange(2))
+        if culverts:
+            handle.create_dataset(f"{BARRELS}/Attributes", data=np.arange(4))
+        # Present in every real file that has it, and always empty: it is not
+        # evidence of anything, which is why it is not in REQUIRED.
+        handle.create_group("Geometry/Structures/Property Tables")
         if complete:
-            handle.create_dataset(
-                "Geometry/Structures/Property Tables/Table", data=np.arange(5)
-            )
             handle.create_dataset("Geometry/GeomPreprocess/Node Info", data=np.arange(3))
+            if culverts:
+                handle.create_dataset(f"{BARRELS}/Upstream Cells", data=np.arange(6))
+                handle.create_dataset(f"{BARRELS}/Downstream Cells", data=np.arange(8))
     return path
 
 
@@ -249,6 +263,32 @@ def test_missing_preprocessed_tables_are_detected(tmp_path: Path):
     assert geometry.missing_tables(tmp_path / "absent.hdf") == geometry.REQUIRED
 
 
+def test_an_empty_property_tables_group_is_not_taken_as_evidence(tmp_path: Path):
+    """The group the first version tested for is empty in every real file.
+
+    Testing for its presence made a geometry with no preprocessor output at all
+    look repaired, and made ``--geometry rasprocess`` look like it had failed
+    when the question had been asked wrongly.
+    """
+    from q50depth import geometry
+
+    incomplete = _geometry_file(tmp_path / "MODEL.g03.hdf", complete=False)
+    with h5py.File(incomplete, "r") as handle:
+        assert "Geometry/Structures/Property Tables" in handle
+        assert len(handle["Geometry/Structures/Property Tables"]) == 0
+    assert geometry.missing_tables(incomplete) == geometry.REQUIRED
+
+
+def test_a_model_without_culverts_needs_no_barrel_datasets(tmp_path: Path):
+    from q50depth import geometry
+
+    path = _geometry_file(tmp_path / "MODEL.g03.hdf", complete=True, culverts=False)
+    assert geometry.missing_tables(path) == ()
+
+    bare = _geometry_file(tmp_path / "bare.g03.hdf", complete=False, culverts=False)
+    assert geometry.missing_tables(bare) == ("Geometry/GeomPreprocess",)
+
+
 def test_geometry_is_rebuilt_from_the_results_file(tmp_path: Path):
     from q50depth import geometry
 
@@ -259,7 +299,7 @@ def test_geometry_is_rebuilt_from_the_results_file(tmp_path: Path):
 
     repair = geometry.rebuild_from_results(incomplete, results_hdf)
     assert geometry.missing_tables(incomplete) == ()
-    assert len(repair.added) == 2
+    assert len(repair.added) == len(geometry.REQUIRED)
     with h5py.File(incomplete, "r") as handle:
         assert handle.attrs["File Type"] == b"HEC-RAS Geometry", "still a geometry file"
         assert "Results" not in handle, "only the Geometry group is taken"
