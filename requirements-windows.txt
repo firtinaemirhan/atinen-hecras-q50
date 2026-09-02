@@ -6,11 +6,21 @@
 #   RasControl.run_plan    -> RAS66.HECRASController COM automation
 ras-commander>=0.99
 
-# ras-commander does not declare these, but its stored-map path needs them:
-#   RasMap.store_all_maps -> RasProcess -> RasBenefits -> geopandas
-# Measured on 2026-09-02: without geopandas the call dies with
-# ModuleNotFoundError after the signature check has already passed.
+# ras-commander does not declare these, but its stored-map path needs them.
+# Measured on 2026-09-02 by installing one at a time until the chain resolved:
+#   RasMap.store_all_maps -> RasProcess -> RasBenefits    -> geopandas
+#                                       -> RasBenefits    -> scipy
+#                                       -> RasterPerformance -> psutil
+# Each one dies with ModuleNotFoundError *after* a signature check has already
+# passed, because store_all_maps imports RasProcess inside its own body.
+#
+# Only the chain this project actually uses is declared. ras-commander carries
+# 37 undeclared third-party imports in total (azure, boto3, xarray, netCDF4 and
+# so on); most are lazy and optional, and pinning all of them would import
+# problems this project does not have.
 geopandas>=1.0
+scipy>=1.11
+psutil>=5.9
 
 # Lets ras-commander dismiss the modal dialogs HEC-RAS raises on a headless or
 # COM launch. Without it ras-commander warns "dialogs will NOT be auto-dismissed"
