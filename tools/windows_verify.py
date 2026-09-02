@@ -14,6 +14,8 @@ Every attempt leaves behind, under ``--evidence``:
                              the plan HDF (this is what the GUI shows in its
                              computation window)
     NN-<name>.bco.txt        the .bco run log, when HEC-RAS wrote one
+    NN-<name>.geometry-before.txt   what the geometry declared going in
+    NN-<name>.geometry-after.txt    and what it declared coming out
 
 That is the point of the script.  A run that fails and explains why is worth
 more than one that succeeds and cannot be shown.
@@ -179,6 +181,70 @@ def _provenance(path: Path) -> str:
     return f"# source: {path}\n# modified: {when}\n# bytes: {stat.st_size}\n\n"
 
 
+#: What the geometry looks like, in the few terms that have decided every step
+#: of this investigation. Written before and after each attempt, because more
+#: than one hour has gone into arguing about a file when the disagreement was
+#: about *which* file: the delivered geometry declares two SA/2D connections
+#: and two boundary condition lines, and a copy that has been through RAS
+#: Mapper's completion pipeline may not.
+def _geometry_state(path: Path) -> str:
+    try:
+        import h5py  # noqa: PLC0415
+        import numpy as np  # noqa: F401, PLC0415
+    except ImportError:
+        return "(h5py not available)"
+    if not path.is_file():
+        return f"{path}: not present"
+
+    lines = [f"{path}", f"  bytes: {path.stat().st_size}"]
+    try:
+        with h5py.File(path, "r") as handle:
+            structures = handle.get("Geometry/Structures/Attributes")
+            if structures is None:
+                lines.append("  structures: none")
+            else:
+                data = structures[...]
+                names = data.dtype.names or ()
+                lines.append(f"  structures: {len(data)}")
+                for field in ("Connection", "Mode", "Culvert Groups"):
+                    if field in names:
+                        values = [
+                            v.decode("latin-1").strip() if isinstance(v, bytes) else v
+                            for v in data[field]
+                        ]
+                        lines.append(f"    {field}: {values}")
+            bc = handle.get("Geometry/Boundary Condition Lines")
+            lines.append(
+                f"  boundary condition lines: {sorted(bc.keys())}" if bc
+                else "  boundary condition lines: GROUP ABSENT"
+            )
+            for key in (
+                "Geometry/GeomPreprocess",
+                "Geometry/Structures/Culvert Groups/Barrels/Upstream Cells",
+                "Geometry/Structures/Culvert Groups/Barrels/Downstream Cells",
+                "Geometry/Boundary Condition Lines/External Faces",
+            ):
+                lines.append(f"  {'present' if key in handle else 'ABSENT ':<8} {key}")
+    except OSError as exc:
+        lines.append(f"  could not be read: {exc}")
+    return "\n".join(lines)
+
+
+def _write_geometry_state(workspace: Path, evidence: Path, stem: str, when: str) -> None:
+    folders = [p for p in workspace.glob("*") if p.is_dir()] or [workspace]
+    blocks = [
+        _geometry_state(path)
+        for folder in folders
+        for path in sorted(folder.glob("*.g*.hdf"))
+    ]
+    (evidence / f"{stem}.geometry-{when}.txt").write_text(
+        f"# geometry {when} this attempt\n\n"
+        + ("\n\n".join(blocks) if blocks else "(no geometry HDF in the workspace)")
+        + "\n",
+        encoding="utf-8",
+    )
+
+
 def _collect(workspace: Path, evidence: Path, stem: str, started_at: float) -> None:
     """Keep what HEC-RAS wrote *during this attempt*, and nothing else.
 
@@ -335,6 +401,8 @@ def main(argv: list[str] | None = None) -> int:
         # Anything older than this instant belongs to an earlier run, or to the
         # client, and is not this attempt's evidence.
         started_at = time.time()
+        if args.workspace.exists():
+            _write_geometry_state(args.workspace, args.evidence, stem, "before")
         try:
             finished = subprocess.run(
                 command, capture_output=True, text=True, timeout=args.timeout, cwd=str(ROOT)
@@ -347,6 +415,8 @@ def main(argv: list[str] | None = None) -> int:
 
         (args.evidence / f"{stem}.log").write_text(transcript, encoding="utf-8")
         _collect(args.workspace, args.evidence, stem, started_at)
+        if args.workspace.exists():
+            _write_geometry_state(args.workspace, args.evidence, stem, "after")
 
         tail = [line for line in transcript.splitlines() if line.strip()][-12:]
         for line in tail:
