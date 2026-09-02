@@ -58,68 +58,55 @@ class Attempt:
 #: In order of how well each is supported by what the data actually shows.
 ATTEMPTS = [
     Attempt(
-        "compute-geometry",
-        "The delivered geometry is missing Geometry/GeomPreprocess and the "
-        "datasets saying which mesh cell each culvert barrel opens into. "
-        "RasGeometryCompute.compute_geometry is RAS Mapper's own Compute "
-        "Geometry action run in process, and its documentation names exactly "
-        "those two: storage-area / structure connectivity, and 2D property "
-        "tables. It also validates the geometry first and prints what HEC-RAS "
-        "itself objects to.",
-        ["--geometry", "compute", "--ib-tables", "rebuild"],
-    ),
-    Attempt(
-        "compute-then-graft",
-        "RAS Mapper's pipeline builds the 2D property tables but not the "
-        "structure connectivity: measured on 2026-09-02, the geometry grew "
-        "from 769 KB to 2.4 MB and still had no GeomPreprocess and no "
-        "barrel-to-cell datasets. So build what it can build, then copy just "
-        "the three datasets it left out from the delivered results. Safe "
-        "because both files number their cells identically to 4.7e-09 m; only "
-        "their face numbering differs, and none of the copied datasets is "
-        "indexed by face.",
+        "graft",
+        "The delivered geometry is missing four things the delivered results "
+        "have: GeomPreprocess, the two datasets saying which mesh cell each "
+        "culvert barrel opens into, and the boundary condition lines' External "
+        "Faces. Copy exactly those four and leave the rest of the geometry "
+        "alone. Face indexes are translated through coordinates, because the "
+        "two files number faces differently.",
         ["--geometry", "graft", "--ib-tables", "rebuild"],
     ),
     Attempt(
-        "ib-rebuild",
-        "Tried on 2026-09-02 and it did not work: the preprocessor built the "
-        "2D flow area tables and the engine still died in READ_UN_HDF_STRUC. "
-        "Kept because it is cheap and because the geometry pipeline above may "
-        "change what this flag now means.",
-        ["--geometry", "none", "--ib-tables", "rebuild"],
-    ),
-    Attempt(
-        "rasprocess",
-        "Ask HEC-RAS's own RasProcess.exe CompleteGeometry to write the "
-        "preprocessed tables into the working copy's geometry before the run, "
-        "so the tables are consistent with that geometry's own numbering.",
-        ["--geometry", "rasprocess", "--ib-tables", "rebuild"],
-    ),
-    Attempt(
         "harvest",
-        "Take the preprocessed tables from the geometry stored inside the "
-        "delivered p05 results. This is what earlier attempts did; it is kept "
-        "so the comparison is honest, but note the results file numbers its "
-        "faces and cells differently from the geometry file.",
+        "Replace the whole geometry with the one inside the delivered results, "
+        "which is complete by definition -- it produced the results. The open "
+        "question is whether HEC-RAS keeps it: the run starts by writing the "
+        "geometry from the text .g03, and that may throw the transplant away. "
+        "The geometry-before and geometry-after files now answer that.",
         ["--geometry", "harvest", "--ib-tables", "rebuild"],
     ),
     Attempt(
-        "controller",
-        "Drive the HEC-RAS COM automation object (RAS66.HECRASController), the "
-        "same interface the GUI uses, instead of the command line runner.",
-        ["--geometry", "none", "--ib-tables", "rebuild", "--runner", "controller"],
+        "graft-single-core",
+        "The same repair on one core. A parallel solver can fail where a serial "
+        "one does not, and this has not been tried since the repair started "
+        "working.",
+        ["--geometry", "graft", "--ib-tables", "rebuild", "--cores", "1"],
     ),
     Attempt(
-        "single-core",
-        "One core. A parallel solver can fail where a serial one does not, and "
-        "this was never tried.",
-        ["--geometry", "none", "--ib-tables", "rebuild", "--cores", "1"],
+        "graft-inline-hydrograph",
+        "The same repair, with the inflow hydrograph written into the flow "
+        "file so the run does not depend on HEC-RAS opening the DSS at all. "
+        "Worth trying because a dialog saying 'Error in Loading Plan Data' "
+        "still appears even with the DSS in place.",
+        ["--geometry", "graft", "--ib-tables", "rebuild", "--inflow", "inline"],
     ),
     Attempt(
-        "inline-hydrograph",
-        "Write the inflow hydrograph into the flow file so the run no longer "
-        "depends on HEC-RAS opening the DSS file at all.",
-        ["--geometry", "none", "--ib-tables", "rebuild", "--inflow", "inline"],
+        "graft-controller",
+        "The same repair, driven through the COM automation object the GUI "
+        "uses instead of the command line runner.",
+        ["--geometry", "graft", "--ib-tables", "rebuild", "--runner", "controller"],
+    ),
+    Attempt(
+        "compute-geometry",
+        "RAS Mapper's own geometry-completion pipeline. Last on the list and "
+        "suspected of doing harm: on 2026-09-02 it grew the geometry from "
+        "769 KB to 2.4 MB, wrote none of the four missing datasets, returned "
+        "success=False with no error, and a geometry measured afterwards "
+        "declared one SA/2D connection where the delivered file declares two. "
+        "Kept so that claim can be tested rather than repeated -- the "
+        "geometry-before and geometry-after files settle it.",
+        ["--geometry", "compute", "--ib-tables", "rebuild"],
     ),
 ]
 
