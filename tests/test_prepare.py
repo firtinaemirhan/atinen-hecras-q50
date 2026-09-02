@@ -305,6 +305,74 @@ def test_geometry_is_rebuilt_from_the_results_file(tmp_path: Path):
         assert "Results" not in handle, "only the Geometry group is taken"
 
 
+def _with_mesh(path: Path, centres) -> Path:
+    """Give a geometry file a 2D area, so the graft has cell numbering to check."""
+    with h5py.File(path, "r+") as handle:
+        handle.create_dataset(
+            "Geometry/2D Flow Areas/inpinar/Cells Center Coordinate",
+            data=np.asarray(centres, dtype="float64"),
+        )
+    return path
+
+
+CENTRES = [[0.0, 0.0], [1.0, 0.0], [2.0, 0.0]]
+
+
+def test_graft_copies_only_what_is_missing(tmp_path: Path):
+    """The 2D tables HEC-RAS just built must survive the repair."""
+    from q50depth import geometry
+
+    incomplete = _with_mesh(
+        _geometry_file(tmp_path / "MODEL.g03.hdf", complete=False), CENTRES
+    )
+    with h5py.File(incomplete, "r+") as handle:
+        handle.create_dataset("Geometry/2D Flow Areas/inpinar/Expensive", data=np.arange(9))
+    results_hdf = _with_mesh(
+        _geometry_file(tmp_path / "MODEL.p05.hdf", complete=True), CENTRES
+    )
+
+    repair = geometry.graft_missing(incomplete, results_hdf)
+
+    assert set(repair.added) == set(geometry.REQUIRED)
+    assert geometry.missing_tables(incomplete) == ()
+    with h5py.File(incomplete, "r") as handle:
+        assert "Geometry/2D Flow Areas/inpinar/Expensive" in handle, "graft destroyed work"
+        assert handle.attrs["File Type"] == b"HEC-RAS Geometry"
+        assert "Results" not in handle
+
+
+def test_graft_refuses_a_mesh_it_does_not_recognise(tmp_path: Path):
+    """Copied datasets are indexed by cell, so the cells have to be the same."""
+    from q50depth import geometry
+
+    incomplete = _with_mesh(
+        _geometry_file(tmp_path / "MODEL.g03.hdf", complete=False), CENTRES
+    )
+    moved = _with_mesh(
+        _geometry_file(tmp_path / "MODEL.p05.hdf", complete=True),
+        [[0.0, 0.0], [1.0, 0.0], [99.0, 0.0]],
+    )
+    with pytest.raises(ComputeError, match="cell centres differ"):
+        geometry.graft_missing(incomplete, moved)
+
+    fewer = _with_mesh(
+        _geometry_file(tmp_path / "other.p05.hdf", complete=True), CENTRES[:2]
+    )
+    with pytest.raises(ComputeError, match="cells in MODEL.g03.hdf"):
+        geometry.graft_missing(incomplete, fewer)
+
+
+def test_graft_on_a_complete_geometry_changes_nothing(tmp_path: Path):
+    from q50depth import geometry
+
+    complete = _with_mesh(
+        _geometry_file(tmp_path / "MODEL.g03.hdf", complete=True), CENTRES
+    )
+    before = complete.read_bytes()
+    assert geometry.graft_missing(complete, complete).added == ()
+    assert complete.read_bytes() == before
+
+
 def test_rebuild_refuses_when_the_results_file_is_no_better(tmp_path: Path):
     from q50depth import geometry
 

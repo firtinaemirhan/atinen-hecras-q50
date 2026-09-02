@@ -36,6 +36,7 @@ from datetime import datetime
 from pathlib import Path
 
 import h5py
+import numpy as np
 
 from .errors import ComputeError
 
@@ -308,18 +309,103 @@ def validate_with_ras_commander(
 
 
 def _resolve_version(ras_dir: Path) -> str:
-    """What ras-commander calls a ras_version.
+    """The version string ras-commander identifies a HEC-RAS install by.
 
-    It wants a version string ("6.6") or a full path to Ras.exe. Handing it the
-    installation folder resolves the executable to the bare name "Ras.exe",
-    which then depends on PATH -- and makes unrelated checks, such as the terms
-    and conditions test, report "version-unresolved" instead of an answer.
+    Four separate calls have now been got wrong the same way -- ``ras_version``,
+    the terms-and-conditions check, ``RasTcu.status`` and ``hecras_version`` --
+    each time by handing over a path where a version was wanted.  The failures
+    do not look alike: one reported "not recognized", one silently resolved the
+    executable to the bare name ``Ras.exe``, one answered
+    "version-unresolved" to a question about a licence, and one said it could
+    not find ``RasMapperLib.dll`` in an install where the file plainly is.
+
+    So the conversion lives here and returns one thing: the version, taken from
+    the name of the installation folder ("6.6"). A path to ``Ras.exe`` gives the
+    name of the folder holding it. A bare version is passed through.
     """
-    ras_dir = Path(ras_dir).expanduser()
-    if ras_dir.is_file() and ras_dir.suffix.lower() == ".exe":
-        return str(ras_dir)
-    executable = ras_dir / "Ras.exe"
-    return str(executable) if executable.is_file() else ras_dir.name
+    given = Path(ras_dir).expanduser()
+    text = str(ras_dir).strip()
+    if re.fullmatch(r"\d+(\.\d+)*", text):
+        return text
+    if given.suffix.lower() == ".exe":
+        return given.parent.name
+    return given.name
+
+
+def _mesh_cells(handle) -> dict[str, np.ndarray]:
+    root = handle.get("Geometry/2D Flow Areas")
+    if root is None:
+        return {}
+    return {
+        name: node["Cells Center Coordinate"][...]
+        for name, node in root.items()
+        if isinstance(node, h5py.Group) and "Cells Center Coordinate" in node
+    }
+
+
+def graft_missing(geometry_hdf: Path, results_hdf: Path) -> Repair:
+    """Copy only the datasets the geometry lacks, leaving the rest alone.
+
+    :func:`rebuild_from_results` replaces the whole ``Geometry`` group, which
+    also throws away the 2D property tables HEC-RAS or RAS Mapper just spent
+    time building.  This copies the missing datasets and nothing else.
+
+    That is only safe because the two files number their cells identically.
+    Checked on the delivered pair: 5667 cell centres, largest disagreement
+    4.7e-09 m, which is float noise.  Their *face* numbering does differ --
+    21111 of 25736 entries in ``Faces FacePoint Indexes`` disagree -- so the
+    datasets copied here are limited to ones indexed by cell:
+
+        Culvert Groups/Barrels/Upstream Cells    (Cell Index 1553..5397)
+        Culvert Groups/Barrels/Downstream Cells  (Cell Index 1515..5454)
+        Geometry/GeomPreprocess                  (1D internal-boundary tables,
+                                                  a few dozen values about the
+                                                  two SA/2D connections)
+
+    The cell numbering is verified again here rather than assumed, and the
+    graft is refused if it does not hold.
+    """
+    missing = missing_tables(geometry_hdf)
+    if not missing:
+        return Repair(geometry_hdf, results_hdf, ())
+
+    with h5py.File(results_hdf, "r") as source:
+        available = tuple(key for key in missing if key in source)
+        if not available:
+            raise ComputeError(
+                f"{results_hdf.name} does not carry {', '.join(missing)} either.",
+                hint="There is nothing to copy from.",
+            )
+        with h5py.File(geometry_hdf, "r") as target:
+            theirs, ours = _mesh_cells(source), _mesh_cells(target)
+            for name, centres in ours.items():
+                other = theirs.get(name)
+                if other is None or other.shape != centres.shape:
+                    raise ComputeError(
+                        f"2D area {name!r} has {len(centres)} cells in "
+                        f"{geometry_hdf.name} and "
+                        f"{0 if other is None else len(other)} in {results_hdf.name}.",
+                        hint="The two files describe different meshes, so cell "
+                        "indexes copied from one would point at the wrong cells "
+                        "in the other. Refusing to graft.",
+                    )
+                drift = float(np.abs(centres - other).max())
+                if drift > 1e-3:
+                    raise ComputeError(
+                        f"2D area {name!r} cell centres differ by up to {drift:g} m "
+                        f"between {geometry_hdf.name} and {results_hdf.name}.",
+                        hint="The cells are not in the same order, so copied cell "
+                        "indexes would be wrong. Refusing to graft.",
+                    )
+
+    with h5py.File(results_hdf, "r") as source, h5py.File(geometry_hdf, "r+") as target:
+        for key in available:
+            parent = key.rsplit("/", 1)[0]
+            target.require_group(parent)
+            if key in target:
+                del target[key]
+            source.copy(source[key], target[parent], name=key.rsplit("/", 1)[1])
+    return Repair(geometry_hdf, results_hdf, available)
 
 
 def rebuild_from_results(geometry_hdf: Path, results_hdf: Path) -> Repair:

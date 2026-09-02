@@ -112,7 +112,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--geometry",
-        choices=("auto", "compute", "rasprocess", "harvest", "none"),
+        choices=("auto", "compute", "graft", "rasprocess", "harvest", "none"),
         default="auto",
         help="How to supply the preprocessed geometry the delivery is missing "
         "(GeomPreprocess, and which mesh cell each culvert barrel opens into). "
@@ -403,6 +403,16 @@ def run(argv: list[str] | None = None) -> int:
                             else "      still missing: "
                             + ", ".join(a.split("/", 1)[1] for a in absent)
                         )
+
+                if absent and args.geometry in ("auto", "graft"):
+                    repair = geometry.graft_missing(
+                        geometry_hdf, results.results_path_for(selected.path)
+                    )
+                    log.info(
+                        f"      grafted into {repair.geometry_hdf.name} from "
+                        f"{repair.source.name}: {', '.join(repair.added) or 'nothing'}"
+                    )
+                    absent = geometry.missing_tables(geometry_hdf)
 
                 if absent and args.geometry in ("auto", "harvest"):
                     repair = geometry.rebuild_from_results(

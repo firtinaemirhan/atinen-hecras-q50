@@ -67,6 +67,18 @@ ATTEMPTS = [
         ["--geometry", "compute", "--ib-tables", "rebuild"],
     ),
     Attempt(
+        "compute-then-graft",
+        "RAS Mapper's pipeline builds the 2D property tables but not the "
+        "structure connectivity: measured on 2026-09-02, the geometry grew "
+        "from 769 KB to 2.4 MB and still had no GeomPreprocess and no "
+        "barrel-to-cell datasets. So build what it can build, then copy just "
+        "the three datasets it left out from the delivered results. Safe "
+        "because both files number their cells identically to 4.7e-09 m; only "
+        "their face numbering differs, and none of the copied datasets is "
+        "indexed by face.",
+        ["--geometry", "graft", "--ib-tables", "rebuild"],
+    ),
+    Attempt(
         "ib-rebuild",
         "Tried on 2026-09-02 and it did not work: the preprocessor built the "
         "2D flow area tables and the engine still died in READ_UN_HDF_STRUC. "

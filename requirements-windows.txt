@@ -26,3 +26,10 @@ psutil>=5.9
 # COM launch. Without it ras-commander warns "dialogs will NOT be auto-dismissed"
 # and a COM run can hang on a dialog nobody can see.
 pywin32>=306
+
+# RAS Mapper's geometry pipeline is a .NET assembly (RasMapperLib.dll) and
+# ras-commander loads it through pythonnet. Without it compute_geometry does not
+# say "pythonnet missing"; it says it "could not find a HEC-RAS install
+# containing RasMapperLib.dll ... Searched: <none>", in an install where the
+# file is plainly present. Measured 2026-09-02.
+pythonnet>=3.0
